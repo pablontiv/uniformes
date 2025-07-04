@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UniformesSystem.API", "Unif
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UniformesSystem.Web", "UniformesSystem.Web\UniformesSystem.Web.csproj", "{137B7D79-C8E5-4E52-B525-760F02EF7610}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UniformesSystem.API.Tests", "UniformesSystem.API.Tests\UniformesSystem.API.Tests.csproj", "{235C3FFA-AFC2-4802-B102-CB67E65384CF}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -55,6 +57,18 @@ Global
 		{137B7D79-C8E5-4E52-B525-760F02EF7610}.Release|x64.Build.0 = Release|Any CPU
 		{137B7D79-C8E5-4E52-B525-760F02EF7610}.Release|x86.ActiveCfg = Release|Any CPU
 		{137B7D79-C8E5-4E52-B525-760F02EF7610}.Release|x86.Build.0 = Release|Any CPU
+		{235C3FFA-AFC2-4802-B102-CB67E65384CF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{235C3FFA-AFC2-4802-B102-CB67E65384CF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{235C3FFA-AFC2-4802-B102-CB67E65384CF}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{235C3FFA-AFC2-4802-B102-CB67E65384CF}.Debug|x64.Build.0 = Debug|Any CPU
+		{235C3FFA-AFC2-4802-B102-CB67E65384CF}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{235C3FFA-AFC2-4802-B102-CB67E65384CF}.Debug|x86.Build.0 = Debug|Any CPU
+		{235C3FFA-AFC2-4802-B102-CB67E65384CF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{235C3FFA-AFC2-4802-B102-CB67E65384CF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{235C3FFA-AFC2-4802-B102-CB67E65384CF}.Release|x64.ActiveCfg = Release|Any CPU
+		{235C3FFA-AFC2-4802-B102-CB67E65384CF}.Release|x64.Build.0 = Release|Any CPU
+		{235C3FFA-AFC2-4802-B102-CB67E65384CF}.Release|x86.ActiveCfg = Release|Any CPU
+		{235C3FFA-AFC2-4802-B102-CB67E65384CF}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
