@@ -1,0 +1,52 @@
+version: "3.8"
+
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2019-latest
+    container_name: uniformes-db
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=P@ssw0rd
+    ports:
+      - "1433:1433"
+    volumes:
+      - uniformes-data:/var/opt/mssql
+    networks:
+      - uniformes-network
+
+  api:
+    build:
+      context: .
+      dockerfile: UniformesSystem.API/Dockerfile
+    container_name: uniformes-api
+    depends_on:
+      - db
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Server=db;Database=UniformesDB;User=sa;Password=P@ssw0rd;TrustServerCertificate=True;
+    ports:
+      - "5000:80"
+    networks:
+      - uniformes-network
+
+  web:
+    build:
+      context: .
+      dockerfile: UniformesSystem.Web/Dockerfile
+    container_name: uniformes-web
+    depends_on:
+      - api
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ApiBaseUrl=http://api
+    ports:
+      - "5001:80"
+    networks:
+      - uniformes-network
+
+networks:
+  uniformes-network:
+    driver: bridge
+
+volumes:
+  uniformes-data:

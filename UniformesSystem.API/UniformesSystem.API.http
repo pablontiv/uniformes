@@ -1,0 +1,6 @@
+@UniformesSystem.API_HostAddress = http://localhost:5144
+
+GET {{UniformesSystem.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
