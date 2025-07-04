@@ -1,25 +1,23 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Serilog;
 using System.Text;
 using UniformesSystem.API.Models;
+using UniformesSystem.Database;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add Serilog
 Log.Logger = new LoggerConfiguration()
     .ReadFrom.Configuration(builder.Configuration)
     .CreateLogger();
 
 builder.Host.UseSerilog();
 
-// Add AuthSettings from configuration
 var authSettingsSection = builder.Configuration.GetSection("AuthSettings");
 builder.Services.Configure<AuthSettings>(authSettingsSection);
 var authSettings = authSettingsSection.Get<AuthSettings>();
-
-// Add JWT Authentication
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -39,14 +37,13 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-// Add AutoMapper
 builder.Services.AddAutoMapper(typeof(Program));
 
-// Add controllers and API explorer
+builder.Services.AddDbContext<UniformesDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-
-// Configure Swagger with JWT authentication
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "Uniformes System API", Version = "v1" });
@@ -76,7 +73,6 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -85,13 +81,16 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-// Global exception handling
 app.UseExceptionHandler("/error");
-
-// Add authentication and authorization
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// Apply migrations automatically when running in Docker
+if (app.Environment.IsDevelopment())
+{
+    MigrationStartupExtensions.MigrateDatabase(app.Services);
+}
 
 app.Run();
