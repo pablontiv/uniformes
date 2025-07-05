@@ -1,33 +1,42 @@
-﻿<MudNavMenu>
-    <MudText Typo="Typo.subtitle2" Color="Color.Inherit" Class="ml-4 my-3">Dashboard</MudText>
-    <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard">Dashboard</MudNavLink>
-    
-    <MudText Typo="Typo.subtitle2" Color="Color.Inherit" Class="ml-4 my-3">Employee Management</MudText>
-    <MudNavLink Href="employees" Icon="@Icons.Material.Filled.People">Employees</MudNavLink>
-    <MudNavLink Href="employee-groups" Icon="@Icons.Material.Filled.Group">Groups</MudNavLink>
-    
-    <MudText Typo="Typo.subtitle2" Color="Color.Inherit" Class="ml-4 my-3">Inventory Management</MudText>
-    <MudNavLink Href="item-catalog" Icon="@Icons.Material.Filled.Category">Catalog</MudNavLink>
-    <MudNavLink Href="inventory" Icon="@Icons.Material.Filled.Inventory">Inventory</MudNavLink>
-    
-    <MudText Typo="Typo.subtitle2" Color="Color.Inherit" Class="ml-4 my-3">Warehouse</MudText>
-    <MudNavLink Href="item-issuance" Icon="@Icons.Material.Filled.LocalShipping">Issue Items</MudNavLink>
-    <MudNavLink Href="returns" Icon="@Icons.Material.Filled.AssignmentReturn">Returns</MudNavLink>
-    <MudNavLink Href="adjustments" Icon="@Icons.Material.Filled.Edit">Adjustments</MudNavLink>
-    
-    <MudText Typo="Typo.subtitle2" Color="Color.Inherit" Class="ml-4 my-3">Reports</MudText>
-    <MudNavLink Href="inventory-report" Icon="@Icons.Material.Filled.Assignment">Inventory</MudNavLink>
-    <MudNavLink Href="transaction-report" Icon="@Icons.Material.Filled.Receipt">Transactions</MudNavLink>
-    <MudNavLink Href="employee-items-report" Icon="@Icons.Material.Filled.PersonPin">Employee Items</MudNavLink>
-    
-    @if (IsAdmin)
-    {
-        <MudText Typo="Typo.subtitle2" Color="Color.Inherit" Class="ml-4 my-3">Administration</MudText>
-        <MudNavLink Href="user-management" Icon="@Icons.Material.Filled.AdminPanelSettings">User Management</MudNavLink>
-        <MudNavLink Href="settings" Icon="@Icons.Material.Filled.Settings">System Settings</MudNavLink>
-    }
-</MudNavMenu>
-
-@code {
-    private bool IsAdmin { get; set; } = true;
-}
+﻿<AuthorizeView>
+    <Authorized>
+        <MudNavMenu>
+            <MudText Typo="Typo.subtitle2" Color="Color.Inherit" Class="ml-4 my-3">Dashboard</MudText>
+            <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard">Dashboard</MudNavLink>
+            
+            <AuthorizeView Roles="Administrator,HR Staff">
+                <Authorized Context="employeeAuth">
+                    <MudText Typo="Typo.subtitle2" Color="Color.Inherit" Class="ml-4 my-3">Employee Management</MudText>
+                    <MudNavLink Href="employees" Icon="@Icons.Material.Filled.People">Employees</MudNavLink>
+                    <MudNavLink Href="employee-groups" Icon="@Icons.Material.Filled.Group">Groups</MudNavLink>
+                </Authorized>
+            </AuthorizeView>
+            
+            <AuthorizeView Roles="Administrator,Inventory Manager">
+                <Authorized Context="inventoryAuth">
+                    <MudText Typo="Typo.subtitle2" Color="Color.Inherit" Class="ml-4 my-3">Inventory Management</MudText>
+                    <MudNavLink Href="item-catalog" Icon="@Icons.Material.Filled.Category">Catalog</MudNavLink>
+                    <MudNavLink Href="inventory" Icon="@Icons.Material.Filled.Inventory">Inventory</MudNavLink>
+                    
+                    <MudText Typo="Typo.subtitle2" Color="Color.Inherit" Class="ml-4 my-3">Warehouse</MudText>
+                    <MudNavLink Href="item-issuance" Icon="@Icons.Material.Filled.LocalShipping">Issue Items</MudNavLink>
+                    <MudNavLink Href="returns" Icon="@Icons.Material.Filled.AssignmentReturn">Returns</MudNavLink>
+                    <MudNavLink Href="adjustments" Icon="@Icons.Material.Filled.Edit">Adjustments</MudNavLink>
+                </Authorized>
+            </AuthorizeView>
+            
+            <MudText Typo="Typo.subtitle2" Color="Color.Inherit" Class="ml-4 my-3">Reports</MudText>
+            <MudNavLink Href="inventory-report" Icon="@Icons.Material.Filled.Assignment">Inventory</MudNavLink>
+            <MudNavLink Href="transaction-report" Icon="@Icons.Material.Filled.Receipt">Transactions</MudNavLink>
+            <MudNavLink Href="employee-items-report" Icon="@Icons.Material.Filled.PersonPin">Employee Items</MudNavLink>
+            
+            <AuthorizeView Roles="Administrator">
+                <Authorized Context="adminAuth">
+                    <MudText Typo="Typo.subtitle2" Color="Color.Inherit" Class="ml-4 my-3">Administration</MudText>
+                    <MudNavLink Href="user-management" Icon="@Icons.Material.Filled.AdminPanelSettings">User Management</MudNavLink>
+                    <MudNavLink Href="settings" Icon="@Icons.Material.Filled.Settings">System Settings</MudNavLink>
+                </Authorized>
+            </AuthorizeView>
+        </MudNavMenu>
+    </Authorized>
+</AuthorizeView>

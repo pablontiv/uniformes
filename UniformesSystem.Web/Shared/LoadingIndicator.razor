@@ -1,0 +1,11 @@
+<MudContainer Class="d-flex justify-center align-center" Style="height: 40vh;">
+    <MudPaper Elevation="0" Class="d-flex flex-column align-center pa-4">
+        <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
+        <MudText Typo="Typo.body1" Class="mt-4">@LoadingText</MudText>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    [Parameter]
+    public string LoadingText { get; set; } = "Loading...";
+}

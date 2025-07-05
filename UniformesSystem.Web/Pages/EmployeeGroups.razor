@@ -1,0 +1,216 @@
+@page "/employee-groups"
+@attribute [Authorize(Roles = "Administrator,HR Staff")]
+@using MudBlazor
+@using UniformesSystem.Web.Services
+@using UniformesSystem.Web.Models
+@using System.ComponentModel.DataAnnotations
+@inject GroupService GroupService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<PageTitle>Employee Groups - Uniformes Management System</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Employee Groups Management</MudText>
+
+@if (_loading)
+{
+    <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+}
+else
+{
+    <MudGrid>
+        <MudItem xs="12" md="8">
+            <MudCard Elevation="4">
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h6">Employee Groups</MudText>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudTable Items="@_groups" Hover="true" Breakpoint="Breakpoint.Sm" 
+                            Dense="true" Loading="@_loading">
+                        <HeaderContent>
+                            <MudTh>ID</MudTh>
+                            <MudTh>Name</MudTh>
+                            <MudTh>Employee Type</MudTh>
+                            <MudTh>Actions</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="ID">@context.Id</MudTd>
+                            <MudTd DataLabel="Name">@context.Name</MudTd>
+                            <MudTd DataLabel="Employee Type">@context.EmployeeTypeName</MudTd>
+                            <MudTd>
+                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small"
+                                             OnClick="@(() => EditGroup(context))" />
+                                <MudIconButton Icon="@Icons.Material.Filled.PeopleAlt" Color="Color.Info" Size="Size.Small"
+                                             OnClick="@(() => ViewEmployeesInGroup(context))" />
+                            </MudTd>
+                        </RowTemplate>
+                        <NoRecordsContent>
+                            <MudText>No groups found</MudText>
+                        </NoRecordsContent>
+                        <PagerContent>
+                            <MudTablePager />
+                        </PagerContent>
+                    </MudTable>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+        <MudItem xs="12" md="4">
+            <MudCard Elevation="4">
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h6">@(_editingGroup ? "Edit Group" : "Group Information")</MudText>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudText>
+                        Groups are used to organize employees based on their work area and employee type.
+                        Groups A, B, C, D, and E are for unionized employees, while Group Z is for administrative employees.
+                    </MudText>
+
+                    <MudDivider Class="my-4" />
+
+                    @if (_editingGroup)
+                    {
+                        <EditForm Model="@_currentGroup" OnValidSubmit="HandleGroupSubmit">
+                            <DataAnnotationsValidator />
+                            <MudTextField @bind-Value="_currentGroup.Name" Label="Group Name" Required="true"
+                                        For="@(() => _currentGroup.Name)" />
+                            
+                            <MudSelect T="int" @bind-Value="_currentGroup.EmployeeTypeId" Label="Employee Type" Required="true"
+                                     For="@(() => _currentGroup.EmployeeTypeId)" Class="mt-3">
+                                @foreach (var type in _employeeTypes)
+                                {
+                                    <MudSelectItem Value="@type.Id">@type.Type</MudSelectItem>
+                                }
+                            </MudSelect>
+                            
+                            <ValidationSummary Class="mt-3" />
+                            
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" ButtonType="ButtonType.Submit"
+                                     Class="mt-4 mr-2">Save</MudButton>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Secondary" 
+                                     OnClick="@(() => _editingGroup = false)">Cancel</MudButton>
+                        </EditForm>
+                    }
+                    else
+                    {
+                        <MudPaper Class="pa-3">
+                            <MudText Class="mb-2"><strong>Group Types:</strong></MudText>
+                            <MudText Class="ml-3 mb-1">• Group A, B, C, D, E: Unionized employees</MudText>
+                            <MudText Class="ml-3">• Group Z: Administrative employees</MudText>
+                        </MudPaper>
+                    }
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    private List<GroupDto> _groups = new();
+    private List<EmployeeTypeDto> _employeeTypes = new();
+    private GroupDto _currentGroup = new();
+    private bool _loading = true;
+    private bool _editingGroup = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        _loading = true;
+        
+        try
+        {
+            var groupsTask = GroupService.GetGroupsAsync();
+            var typesTask = GroupService.GetEmployeeTypesAsync();
+            
+            await Task.WhenAll(groupsTask, typesTask);
+            
+            _groups = await groupsTask;
+            _employeeTypes = await typesTask;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading data: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void EditGroup(GroupDto group)
+    {
+        _currentGroup = new GroupDto
+        {
+            Id = group.Id,
+            Name = group.Name,
+            EmployeeTypeId = group.EmployeeTypeId,
+            EmployeeTypeName = group.EmployeeTypeName
+        };
+        _editingGroup = true;
+    }
+
+    private async Task HandleGroupSubmit()
+    {
+        _loading = true;
+        
+        try
+        {
+            bool success;
+            
+            if (_currentGroup.Id == 0)
+            {
+                success = await GroupService.CreateGroupAsync(_currentGroup);
+            }
+            else
+            {
+                success = await GroupService.UpdateGroupAsync(_currentGroup);
+            }
+            
+            if (success)
+            {
+                Snackbar.Add($"Group {(_currentGroup.Id == 0 ? "created" : "updated")} successfully", Severity.Success);
+                _editingGroup = false;
+                await LoadData();
+            }
+            else
+            {
+                Snackbar.Add("Failed to save group", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void ViewEmployeesInGroup(GroupDto group)
+    {
+        var parameters = new DialogParameters
+        {
+            { "GroupId", group.Id },
+            { "GroupName", group.Name }
+        };
+
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true,
+            CloseButton = true
+        };
+
+        // This would show a dialog with employees in the group
+        // Since we don't have that component yet, we'll just show a snackbar
+        Snackbar.Add($"Viewing employees in group {group.Name}", Severity.Info);
+    }
+}

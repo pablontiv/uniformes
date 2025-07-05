@@ -1,0 +1,163 @@
+@page "/employees"
+@attribute [Authorize(Roles = "Administrator,HR Staff")]
+@using MudBlazor
+@using UniformesSystem.Web.Services
+@using UniformesSystem.Web.Models
+@inject EmployeeService EmployeeService
+@inject GroupService GroupService
+@inject NavigationManager NavigationManager
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Employees - Uniformes Management System</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Employee Management</MudText>
+
+<MudCard Elevation="4" Class="mb-4">
+    <MudCardContent>
+        <MudGrid>
+            <MudItem xs="12" md="4">
+                <MudTextField T="string" Label="Search" Placeholder="Search by name" 
+                            Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" 
+                            IconSize="Size.Medium" Class="mt-0" @bind-Value="_searchString" />
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudSelect T="int?" Label="Filter by Group" @bind-Value="_selectedGroupId">
+                    <MudSelectItem Value="@((int?)null)">All Groups</MudSelectItem>
+                    @foreach (var group in _groups)
+                    {
+                        <MudSelectItem Value="@group.Id">@group.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" 
+                        EndIcon="@Icons.Material.Filled.Add" 
+                        OnClick="@(() => NavigationManager.NavigateTo("/employees/new"))"
+                        Class="mt-4">Add New Employee</MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudCardContent>
+</MudCard>
+
+@if (_loading)
+{
+    <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+}
+else
+{
+    <MudTable Items="@FilteredEmployees" Hover="true" Breakpoint="Breakpoint.Sm" 
+             Loading="@_loading" LoadingProgressColor="Color.Info" 
+             SortLabel="Sort By" Dense="true">
+        <HeaderContent>
+            <MudTh><MudTableSortLabel SortBy="new Func<EmployeeDto, object>(x => x.Id)">ID</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortBy="new Func<EmployeeDto, object>(x => x.Name)">Name</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortBy="new Func<EmployeeDto, object>(x => x.GroupName)">Group</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortBy="new Func<EmployeeDto, object>(x => x.EmployeeTypeName)">Employee Type</MudTableSortLabel></MudTh>
+            <MudTh>Actions</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="ID">@context.Id</MudTd>
+            <MudTd DataLabel="Name">@context.Name</MudTd>
+            <MudTd DataLabel="Group">@context.GroupName</MudTd>
+            <MudTd DataLabel="Employee Type">@context.EmployeeTypeName</MudTd>
+            <MudTd>
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small"
+                              OnClick="@(() => NavigationManager.NavigateTo($"/employees/edit/{context.Id}"))" />
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
+                              OnClick="@(() => ConfirmDeleteEmployee(context))" />
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText>No matching employees found</MudText>
+        </NoRecordsContent>
+        <PagerContent>
+            <MudTablePager />
+        </PagerContent>
+    </MudTable>
+}
+
+@code {
+    private List<EmployeeDto> _employees = new();
+    private List<GroupDto> _groups = new();
+    private bool _loading = true;
+    private string _searchString = "";
+    private int? _selectedGroupId = null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        _loading = true;
+        
+        try
+        {
+            var employeeTask = EmployeeService.GetEmployeesAsync();
+            var groupsTask = GroupService.GetGroupsAsync();
+            
+            await Task.WhenAll(employeeTask, groupsTask);
+            
+            _employees = await employeeTask;
+            _groups = await groupsTask;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading employee data: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private IEnumerable<EmployeeDto> FilteredEmployees => _employees
+        .Where(e => 
+            (string.IsNullOrWhiteSpace(_searchString) || e.Name.Contains(_searchString, StringComparison.OrdinalIgnoreCase)) && 
+            (!_selectedGroupId.HasValue || e.GroupId == _selectedGroupId.Value)
+        );
+
+    private async Task ConfirmDeleteEmployee(EmployeeDto employee)
+    {
+        var confirmed = await DialogService.ShowMessageBox(
+            "Confirm Delete",
+            $"Are you sure you want to delete employee '{employee.Name}'? This action cannot be undone.",
+            yesText: "Delete", 
+            cancelText: "Cancel");
+            
+        if (confirmed == true)
+        {
+            await DeleteEmployee(employee.Id);
+        }
+    }
+
+    private async Task DeleteEmployee(int id)
+    {
+        _loading = true;
+        
+        try
+        {
+            var success = await EmployeeService.DeleteEmployeeAsync(id);
+            
+            if (success)
+            {
+                Snackbar.Add("Employee deleted successfully", Severity.Success);
+                await LoadData(); // Reload the list
+            }
+            else
+            {
+                Snackbar.Add("Failed to delete employee. They may have associated transactions.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error deleting employee: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+}

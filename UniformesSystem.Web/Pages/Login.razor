@@ -1,0 +1,105 @@
+@page "/login"
+@inject UniformesSystem.Web.Services.AuthService AuthService
+@inject Microsoft.AspNetCore.Components.NavigationManager NavigationManager
+
+<PageTitle>Login - Uniformes System</PageTitle>
+
+<MudContainer Class="d-flex justify-center align-center" Style="height: 100vh;">
+    <MudPaper Elevation="3" Class="pa-8" Style="width: 400px;">
+        <MudText Typo="Typo.h4" Class="mb-4 text-center">Uniformes System</MudText>
+        <MudText Typo="Typo.subtitle1" Class="mb-6 text-center">Sign in to your account</MudText>
+        
+        <EditForm Model="@loginModel" OnValidSubmit="HandleValidSubmit">
+            <DataAnnotationsValidator />
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="loginModel.Username" Label="Username" Variant="Variant.Outlined" 
+                                 FullWidth="true" Required="true" RequiredError="Username is required"/>
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="loginModel.Password" Label="Password" Variant="Variant.Outlined" 
+                                 FullWidth="true" Required="true" RequiredError="Password is required"
+                                 InputType="@passwordInputType" 
+                                 Adornment="Adornment.End" 
+                                 AdornmentIcon="@passwordInputIcon" 
+                                 OnAdornmentClick="TogglePasswordVisibility" />
+                </MudItem>
+                <MudItem xs="12">
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <MudAlert Severity="Severity.Error" Class="my-2">@errorMessage</MudAlert>
+                    }
+                </MudItem>
+                <MudItem xs="12">
+                    <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" 
+                              FullWidth="true" Size="Size.Large" Disabled="@isProcessing">
+                        @if (isProcessing)
+                        {
+                            <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                            <MudText Class="ms-2">Processing</MudText>
+                        }
+                        else
+                        {
+                            <MudText>Sign In</MudText>
+                        }
+                    </MudButton>
+                </MudItem>
+            </MudGrid>
+        </EditForm>
+        
+        <MudDivider Class="my-6" />
+        
+        <MudText Typo="Typo.caption" Align="Align.Center">
+            Demo accounts:<br/>
+            Admin: admin / admin123<br/>
+            Inventory Manager: inventory / inventory123<br/>
+            HR Staff: hr / hr123
+        </MudText>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private LoginModel loginModel = new();
+    private string errorMessage = string.Empty;
+    private bool isProcessing = false;
+    private bool passwordVisible = false;
+    private InputType passwordInputType = InputType.Password;
+    private string passwordInputIcon = Icons.Material.Filled.VisibilityOff;
+
+    private void TogglePasswordVisibility()
+    {
+        passwordVisible = !passwordVisible;
+        passwordInputType = passwordVisible ? InputType.Text : InputType.Password;
+        passwordInputIcon = passwordVisible ? Icons.Material.Filled.Visibility : Icons.Material.Filled.VisibilityOff;
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        isProcessing = true;
+        errorMessage = string.Empty;
+        
+        try
+        {
+            var result = await AuthService.LoginAsync(loginModel.Username, loginModel.Password);
+            
+            if (result)
+            {
+                NavigationManager.NavigateTo("/", true);
+            }
+            else
+            {
+                errorMessage = "Invalid username or password. Please try again.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An error occurred: {ex.Message}";
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+
+}

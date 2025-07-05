@@ -1,0 +1,75 @@
+@page "/employees/detail/employees-by-group/{GroupId:int}"
+@attribute [Authorize(Roles = "Administrator,HR Staff")]
+@using MudBlazor
+@using UniformesSystem.Web.Services
+@using UniformesSystem.Web.Models
+@inject EmployeeService EmployeeService
+@inject ISnackbar Snackbar
+
+<PageTitle>Employees in Group - Uniformes Management System</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Employees in Group: @GroupName</MudText>
+
+@if (_loading)
+{
+    <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+}
+else
+{
+    <MudPaper Elevation="4" Class="pa-4">
+        @if (_employees.Count == 0)
+        {
+            <MudAlert Severity="Severity.Info">No employees found in this group.</MudAlert>
+        }
+        else
+        {
+            <MudTable Items="@_employees" Hover="true" Breakpoint="Breakpoint.Sm" Dense="true">
+                <HeaderContent>
+                    <MudTh>ID</MudTh>
+                    <MudTh>Name</MudTh>
+                    <MudTh>Actions</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="ID">@context.Id</MudTd>
+                    <MudTd DataLabel="Name">@context.Name</MudTd>
+                    <MudTd>
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small"
+                                     Href="@($"/employees/edit/{context.Id}")" />
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        }
+    </MudPaper>
+}
+
+@code {
+    [Parameter] public int GroupId { get; set; }
+    [Parameter] public string GroupName { get; set; }
+    
+    private List<EmployeeDto> _employees = new();
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadEmployeesByGroup();
+    }
+
+    private async Task LoadEmployeesByGroup()
+    {
+        _loading = true;
+        
+        try
+        {
+            var allEmployees = await EmployeeService.GetEmployeesAsync();
+            _employees = allEmployees.Where(e => e.GroupId == GroupId).ToList();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading employees: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+}

@@ -1,0 +1,145 @@
+@page "/employees/new"
+@page "/employees/edit/{Id:int}"
+@attribute [Authorize(Roles = "Administrator,HR Staff")]
+@using MudBlazor
+@using UniformesSystem.Web.Services
+@using UniformesSystem.Web.Models
+@inject EmployeeService EmployeeService
+@inject GroupService GroupService
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+
+<PageTitle>@(_isNew ? "New Employee" : "Edit Employee") - Uniformes Management System</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">@(_isNew ? "Create New Employee" : "Edit Employee")</MudText>
+
+<MudCard Elevation="4">
+    <MudCardContent>
+        @if (_loading)
+        {
+            <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+        }
+        else
+        {
+            <EditForm Model="@_employee" OnValidSubmit="HandleValidSubmit">
+                <DataAnnotationsValidator />
+                <MudGrid>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField @bind-Value="_employee.Name" Label="Employee Name" Required="true"
+                                     For="@(() => _employee.Name)" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudSelect T="int" @bind-Value="_employee.GroupId" Label="Group" Required="true"
+                                 For="@(() => _employee.GroupId)">
+                            @foreach (var group in _groups)
+                            {
+                                <MudSelectItem Value="@group.Id">@group.Name (@group.EmployeeTypeName)</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12">
+                        <ValidationSummary />
+                    </MudItem>
+                </MudGrid>
+
+                <MudDivider Class="my-4" />
+
+                <MudCardActions>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" ButtonType="ButtonType.Submit"
+                             StartIcon="@Icons.Material.Filled.Save" Class="mr-2">
+                        @(_isNew ? "Create" : "Update")
+                    </MudButton>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Secondary" 
+                             StartIcon="@Icons.Material.Filled.Cancel"
+                             OnClick="@(() => NavigationManager.NavigateTo("/employees"))">
+                        Cancel
+                    </MudButton>
+                </MudCardActions>
+            </EditForm>
+        }
+    </MudCardContent>
+</MudCard>
+
+@code {
+    [Parameter] public int? Id { get; set; }
+
+    private EmployeeDto _employee = new();
+    private List<GroupDto> _groups = new();
+    private bool _loading = true;
+    private bool _isNew => Id == null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        _loading = true;
+        
+        try
+        {
+            // Load groups first as we need them in both create and edit modes
+            _groups = await GroupService.GetGroupsAsync();
+            
+            if (!_isNew)
+            {
+                // Load employee data for edit mode
+                var employee = await EmployeeService.GetEmployeeByIdAsync(Id.Value);
+                if (employee != null)
+                {
+                    _employee = employee;
+                }
+                else
+                {
+                    Snackbar.Add("Employee not found", Severity.Error);
+                    NavigationManager.NavigateTo("/employees");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading data: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        _loading = true;
+        bool success;
+        
+        try
+        {
+            if (_isNew)
+            {
+                success = await EmployeeService.CreateEmployeeAsync(_employee);
+            }
+            else
+            {
+                success = await EmployeeService.UpdateEmployeeAsync(Id.Value, _employee);
+            }
+            
+            if (success)
+            {
+                Snackbar.Add($"Employee {(_isNew ? "created" : "updated")} successfully", Severity.Success);
+                NavigationManager.NavigateTo("/employees");
+            }
+            else
+            {
+                Snackbar.Add($"Failed to {(_isNew ? "create" : "update")} employee", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+}
