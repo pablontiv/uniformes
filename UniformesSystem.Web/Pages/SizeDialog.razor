@@ -1,0 +1,97 @@
+@using MudBlazor
+@using MudBlazor.Utilities
+@using UniformesSystem.Web.Models
+@using UniformesSystem.Web.Services
+@using Microsoft.AspNetCore.Components.Forms
+@inject SizeService SizeService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <EditForm Model="@_size" OnValidSubmit="HandleValidSubmit">
+            <DataAnnotationsValidator />
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_size.Value" Label="Size Value" Required="true"
+                                 For="@(() => _size.Value)" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_size.System" Label="Size System"
+                                For="@(() => _size.System)" />
+                </MudItem>
+                <MudItem xs="12">
+                    <ValidationSummary />
+                </MudItem>
+            </MudGrid>
+        </EditForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="HandleValidSubmit">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] public dynamic MudDialog { get; set; } = null!;
+    [Parameter] public SizeDto? Size { get; set; }
+
+    private SizeDto _size = new();
+    private bool _isNew => Size == null || Size.Id == 0;
+
+    protected override void OnInitialized()
+    {
+        if (Size != null)
+        {
+            _size = new SizeDto
+            {
+                Id = Size.Id,
+                Value = Size.Value,
+                System = Size.System
+            };
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        try
+        {
+            bool success;
+
+            if (_isNew)
+            {
+                success = await SizeService.CreateSizeAsync(_size);
+                if (success)
+                {
+                    Snackbar.Add("Size created successfully", Severity.Success);
+                    MudDialog.Close(DialogResult.Ok(true));
+                }
+                else
+                {
+                    Snackbar.Add("Failed to create size", Severity.Error);
+                }
+            }
+            else
+            {
+                success = await SizeService.UpdateSizeAsync(_size.Id, _size);
+                if (success)
+                {
+                    Snackbar.Add("Size updated successfully", Severity.Success);
+                    MudDialog.Close(DialogResult.Ok(true));
+                }
+                else
+                {
+                    Snackbar.Add("Failed to update size", Severity.Error);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+}

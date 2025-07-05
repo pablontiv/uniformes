@@ -1,4 +1,7 @@
-﻿<AuthorizeView>
+﻿@using Microsoft.AspNetCore.Components.Authorization
+@using MudBlazor
+
+<AuthorizeView>
     <Authorized>
         <MudNavMenu>
             <MudText Typo="Typo.subtitle2" Color="Color.Inherit" Class="ml-4 my-3">Dashboard</MudText>
@@ -15,7 +18,9 @@
             <AuthorizeView Roles="Administrator,Inventory Manager">
                 <Authorized Context="inventoryAuth">
                     <MudText Typo="Typo.subtitle2" Color="Color.Inherit" Class="ml-4 my-3">Inventory Management</MudText>
-                    <MudNavLink Href="item-catalog" Icon="@Icons.Material.Filled.Category">Catalog</MudNavLink>
+                    <MudNavLink Href="item-catalog" Icon="@Icons.Material.Filled.Category">Catalog Items</MudNavLink>
+                    <MudNavLink Href="item-types" Icon="@Icons.Material.Filled.Style">Item Types</MudNavLink>
+                    <MudNavLink Href="sizes" Icon="@Icons.Material.Filled.FormatSize">Sizes</MudNavLink>
                     <MudNavLink Href="inventory" Icon="@Icons.Material.Filled.Inventory">Inventory</MudNavLink>
                     
                     <MudText Typo="Typo.subtitle2" Color="Color.Inherit" Class="ml-4 my-3">Warehouse</MudText>
@@ -40,3 +45,7 @@
         </MudNavMenu>
     </Authorized>
 </AuthorizeView>
+
+@code {
+    // Empty code block to apply _Imports.razor imports
+}

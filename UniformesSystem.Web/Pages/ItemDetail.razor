@@ -1,0 +1,174 @@
+@page "/item-catalog/new"
+@page "/item-catalog/edit/{Id:int}"
+@attribute [Authorize(Roles = "Administrator,Inventory Manager")]
+@using MudBlazor
+@using UniformesSystem.Web.Services
+@using UniformesSystem.Web.Models
+@inject ItemService ItemService
+@inject ItemTypeService ItemTypeService
+@inject SizeService SizeService
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+
+<PageTitle>@(_isNew ? "New Item" : "Edit Item") - Uniformes Management System</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">@(_isNew ? "Create New Item" : $"Edit Item: {_item.Name}")</MudText>
+
+<MudCard Elevation="4">
+    <MudCardContent>
+        @if (_loading)
+        {
+            <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+        }
+        else
+        {
+            <EditForm Model="@_item" OnValidSubmit="HandleValidSubmit">
+                <DataAnnotationsValidator />
+                <MudGrid>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField @bind-Value="_item.Name" Label="Item Name" Required="true"
+                                     For="@(() => _item.Name)" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudSelect T="int" @bind-Value="_item.ItemTypeId" Label="Item Type" Required="true"
+                                 For="@(() => _item.ItemTypeId)">
+                            @foreach (var itemType in _itemTypes)
+                            {
+                                <MudSelectItem Value="@itemType.Id">@itemType.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudSelect T="int" @bind-Value="_item.SizeId" Label="Size" Required="true"
+                                 For="@(() => _item.SizeId)">
+                            @foreach (var size in _sizes)
+                            {
+                                <MudSelectItem Value="@size.Id">@size.Value (@size.System)</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField @bind-Value="_item.Description" Label="Description"
+                                    For="@(() => _item.Description)" Lines="3" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <ValidationSummary />
+                    </MudItem>
+                </MudGrid>
+
+                <MudDivider Class="my-4" />
+
+                <MudCardActions>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" ButtonType="ButtonType.Submit"
+                             StartIcon="@Icons.Material.Filled.Save" Class="mr-2">
+                        @(_isNew ? "Create" : "Update")
+                    </MudButton>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Secondary"
+                             StartIcon="@Icons.Material.Filled.Cancel"
+                             OnClick="@(() => NavigationManager.NavigateTo("/item-catalog"))">
+                        Cancel
+                    </MudButton>
+                </MudCardActions>
+            </EditForm>
+        }
+    </MudCardContent>
+</MudCard>
+
+@code {
+    [Parameter] public int? Id { get; set; }
+
+    private ItemDto _item = new();
+    private List<ItemTypeDto> _itemTypes = new();
+    private List<SizeDto> _sizes = new();
+    private bool _loading = true;
+    private bool _isNew => Id == null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        _loading = true;
+        
+        try
+        {
+            // Load item types and sizes in parallel
+            var itemTypesTask = ItemTypeService.GetItemTypesAsync();
+            var sizesTask = SizeService.GetSizesAsync();
+            
+            await Task.WhenAll(itemTypesTask, sizesTask);
+            
+            _itemTypes = await itemTypesTask;
+            _sizes = await sizesTask;
+            
+            if (!_isNew)
+            {
+                // Load item data for edit mode
+                var item = await ItemService.GetItemByIdAsync(Id!.Value);
+                if (item != null)
+                {
+                    _item = item;
+                }
+                else
+                {
+                    Snackbar.Add("Item not found", Severity.Error);
+                    NavigationManager.NavigateTo("/item-catalog");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading data: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        _loading = true;
+        bool success;
+        
+        try
+        {
+            if (_isNew)
+            {
+                success = await ItemService.CreateItemAsync(_item);
+                if (success)
+                {
+                    Snackbar.Add("Item created successfully", Severity.Success);
+                    NavigationManager.NavigateTo("/item-catalog");
+                }
+                else
+                {
+                    Snackbar.Add("Failed to create item", Severity.Error);
+                }
+            }
+            else
+            {
+                success = await ItemService.UpdateItemAsync(Id!.Value, _item);
+                if (success)
+                {
+                    Snackbar.Add("Item updated successfully", Severity.Success);
+                    NavigationManager.NavigateTo("/item-catalog");
+                }
+                else
+                {
+                    Snackbar.Add("Failed to update item", Severity.Error);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+}

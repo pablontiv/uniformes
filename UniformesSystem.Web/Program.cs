@@ -16,6 +16,8 @@ builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<EmployeeService>();
 builder.Services.AddScoped<GroupService>();
 builder.Services.AddScoped<ItemService>();
+builder.Services.AddScoped<ItemTypeService>();
+builder.Services.AddScoped<SizeService>();
 builder.Services.AddScoped<InventoryService>();
 builder.Services.AddScoped<WarehouseMovementService>();
 builder.Services.AddScoped<DashboardService>();

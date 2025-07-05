@@ -1,0 +1,173 @@
+@page "/item-types"
+@attribute [Authorize(Roles = "Administrator,Inventory Manager")]
+@using MudBlazor
+@using UniformesSystem.Web.Services
+@using UniformesSystem.Web.Models
+@using UniformesSystem.Web.Shared
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Authorization
+@inject ItemTypeService ItemTypeService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<PageTitle>Item Types - Uniformes Management System</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Item Types Management</MudText>
+
+<MudCard Elevation="4" Class="mb-4">
+    <MudCardContent>
+        <MudTextField @bind-Value="_searchTerm" Placeholder="Search item types..."
+                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                      IconSize="Size.Medium" Class="mt-0"></MudTextField>
+    </MudCardContent>
+</MudCard>
+
+<MudCard Elevation="4">
+    <MudCardHeader>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h6">Item Types</MudText>
+        </CardHeaderContent>
+        <CardHeaderActions>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => OpenItemTypeDialog())" 
+                      StartIcon="@Icons.Material.Filled.Add">Add Item Type</MudButton>
+        </CardHeaderActions>
+    </MudCardHeader>
+    <MudCardContent>
+        @if (_loading)
+        {
+            <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+        }
+        else if (_itemTypes == null || !_itemTypes.Any())
+        {
+            <MudText>No item types found.</MudText>
+        }
+        else
+        {
+            <MudTable Items="@_filteredItemTypes" Dense="true" Hover="true" Bordered="true" Striped="true"
+                    Filter="new Func<ItemTypeDto, bool>(FilterItemTypes)" @bind-SelectedItem="_selectedItemType">
+                <HeaderContent>
+                    <MudTh>Name</MudTh>
+                    <MudTh>Description</MudTh>
+                    <MudTh>Actions</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Name">@context.Name</MudTd>
+                    <MudTd DataLabel="Description">@context.Description</MudTd>
+                    <MudTd>
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small"
+                                    OnClick="@(() => OpenItemTypeDialog(context))" Title="Edit" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
+                                    OnClick="@(() => ConfirmDeleteItemType(context))" Title="Delete" />
+                    </MudTd>
+                </RowTemplate>
+                <PagerContent>
+                    <MudTablePager />
+                </PagerContent>
+            </MudTable>
+        }
+    </MudCardContent>
+</MudCard>
+
+@code {
+    private List<ItemTypeDto> _itemTypes = new();
+    private List<ItemTypeDto> _filteredItemTypes = new();
+    private string _searchTerm = string.Empty;
+    private bool _loading = true;
+    private ItemTypeDto? _selectedItemType;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadItemTypes();
+    }
+
+    private async Task LoadItemTypes()
+    {
+        _loading = true;
+        try
+        {
+            _itemTypes = await ItemTypeService.GetItemTypesAsync();
+            _filteredItemTypes = _itemTypes.ToList();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading item types: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private bool FilterItemTypes(ItemTypeDto itemType)
+    {
+        if (string.IsNullOrWhiteSpace(_searchTerm))
+            return true;
+
+        return itemType.Name.Contains(_searchTerm, StringComparison.OrdinalIgnoreCase)
+               || (itemType.Description?.Contains(_searchTerm, StringComparison.OrdinalIgnoreCase) ?? false);
+    }
+
+    private async Task OpenItemTypeDialog(ItemTypeDto? itemType = null)
+    {
+        var parameters = new DialogParameters();
+        string title = "Add New Item Type";
+
+        if (itemType != null)
+        {
+            parameters.Add("ItemType", new ItemTypeDto
+            {
+                Id = itemType.Id,
+                Name = itemType.Name,
+                Description = itemType.Description
+            });
+            title = "Edit Item Type";
+        }
+
+        var dialog = await DialogService.ShowAsync<ItemTypeDialog>(title, parameters);
+        var result = await dialog.Result;
+
+        if (result is { Canceled: false })
+        {
+            await LoadItemTypes();
+        }
+    }
+
+    private async Task ConfirmDeleteItemType(ItemTypeDto itemType)
+    {
+        var parameters = new DialogParameters();
+        parameters.Add("ContentText", $"Are you sure you want to delete the item type '{itemType.Name}'? This action cannot be undone.");
+        parameters.Add("ButtonText", "Delete");
+        parameters.Add("Color", Color.Error);
+            
+        var options = new DialogOptions() { CloseButton = true, MaxWidth = MaxWidth.ExtraSmall };
+            
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>("Confirm Delete", parameters, options);
+        var result = await dialog.Result;
+            
+        if (result is { Canceled: false })
+        {
+            await DeleteItemType(itemType);
+        }
+    }
+
+    private async Task DeleteItemType(ItemTypeDto itemType)
+    {
+        try
+        {
+            var success = await ItemTypeService.DeleteItemTypeAsync(itemType.Id);
+            if (success)
+            {
+                Snackbar.Add($"Item type '{itemType.Name}' was deleted", Severity.Success);
+                await LoadItemTypes();
+            }
+            else
+            {
+                Snackbar.Add("Failed to delete item type", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+    }
+}

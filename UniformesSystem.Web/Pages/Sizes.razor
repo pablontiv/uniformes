@@ -1,0 +1,169 @@
+@page "/sizes"
+@attribute [Authorize(Roles = "Administrator,Inventory Manager")]
+@using MudBlazor
+@using UniformesSystem.Web.Services
+@using UniformesSystem.Web.Models
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Authorization
+@using UniformesSystem.Web.Shared
+@inject SizeService SizeService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<PageTitle>Sizes - Uniformes Management System</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Sizes Management</MudText>
+
+<MudCard Elevation="4" Class="mb-4">
+    <MudCardContent>
+        <MudTextField @bind-Value="_searchTerm" Placeholder="Search sizes..."
+                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                      IconSize="Size.Medium" Class="mt-0"></MudTextField>
+    </MudCardContent>
+</MudCard>
+
+<MudCard Elevation="4">
+    <MudCardHeader>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h6">Sizes</MudText>
+        </CardHeaderContent>
+        <CardHeaderActions>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => OpenSizeDialog())" 
+                      StartIcon="@Icons.Material.Filled.Add">Add Size</MudButton>
+        </CardHeaderActions>
+    </MudCardHeader>
+    <MudCardContent>
+        @if (_loading)
+        {
+            <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+        }
+        else if (_sizes == null || !_sizes.Any())
+        {
+            <MudText>No sizes found.</MudText>
+        }
+        else
+        {
+            <MudTable Items="@_filteredSizes" Dense="true" Hover="true" Bordered="true" Striped="true"
+                    Filter="new Func<SizeDto, bool>(FilterSizes)" @bind-SelectedItem="_selectedSize">
+                <HeaderContent>
+                    <MudTh>Value</MudTh>
+                    <MudTh>System</MudTh>
+                    <MudTh>Actions</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Value">@context.Value</MudTd>
+                    <MudTd DataLabel="System">@context.System</MudTd>
+                    <MudTd>
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small"
+                                    OnClick="@(() => OpenSizeDialog(context))" Title="Edit" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
+                                    OnClick="@(() => ConfirmDeleteSize(context))" Title="Delete" />
+                    </MudTd>
+                </RowTemplate>
+                <PagerContent>
+                    <MudTablePager />
+                </PagerContent>
+            </MudTable>
+        }
+    </MudCardContent>
+</MudCard>
+
+@code {
+    private List<SizeDto> _sizes = new();
+    private List<SizeDto> _filteredSizes = new();
+    private string _searchTerm = string.Empty;
+    private bool _loading = true;
+    private SizeDto? _selectedSize;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSizes();
+    }
+
+    private async Task LoadSizes()
+    {
+        _loading = true;
+        try
+        {
+            _sizes = await SizeService.GetSizesAsync();
+            _filteredSizes = _sizes.ToList();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading sizes: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private bool FilterSizes(SizeDto size)
+    {
+        if (string.IsNullOrWhiteSpace(_searchTerm))
+            return true;
+
+        return size.Value.Contains(_searchTerm, StringComparison.OrdinalIgnoreCase)
+               || size.System.ToString().Contains(_searchTerm, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private async Task OpenSizeDialog(SizeDto? size = null)
+    {
+        var parameters = new DialogParameters();
+        string title = "Add New Size";
+
+        if (size != null)
+        {
+            parameters.Add("Size", new SizeDto
+            {
+                Id = size.Id,
+                Value = size.Value,
+                System = size.System
+            });
+            title = "Edit Size";
+        }
+
+        var dialog = await DialogService.ShowAsync<SizeDialog>(title, parameters);
+        var result = await dialog.Result;
+
+        if (result is { Canceled: false })
+        {
+            await LoadSizes();
+        }
+    }
+
+    private async Task ConfirmDeleteSize(SizeDto size)
+    {
+        var result = await DialogService.ShowMessageBox(
+            "Confirm Delete",
+            $"Are you sure you want to delete the size '{size.Value} ({size.System})'? This action cannot be undone.",
+            yesText: "Delete", 
+            cancelText: "Cancel");
+            
+        if (result == true)
+        {
+            await DeleteSize(size);
+        }
+    }
+
+    private async Task DeleteSize(SizeDto size)
+    {
+        try
+        {
+            var success = await SizeService.DeleteSizeAsync(size.Id);
+            if (success)
+            {
+                Snackbar.Add($"Size '{size.Value} ({size.System})' was deleted", Severity.Success);
+                await LoadSizes();
+            }
+            else
+            {
+                Snackbar.Add("Failed to delete size", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+    }
+}

@@ -1,0 +1,179 @@
+@page "/item-catalog"
+@attribute [Authorize(Roles = "Administrator,Inventory Manager")]
+@using MudBlazor
+@using UniformesSystem.Web.Services
+@using UniformesSystem.Web.Models
+@inject ItemService ItemService
+@inject ItemTypeService ItemTypeService
+@inject NavigationManager NavigationManager
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Item Catalog - Uniformes Management System</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Item Catalog</MudText>
+
+<MudCard Elevation="4" Class="mb-4">
+    <MudCardContent>
+        <MudGrid>
+            <MudItem xs="12" md="4">
+                <MudTextField T="string" Label="Search" Placeholder="Search by name"
+                            Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                            IconSize="Size.Medium" Class="mt-0" @bind-Value="_searchString" />
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudSelect T="int?" Label="Filter by Type" @bind-Value="_selectedItemTypeId">
+                    <MudSelectItem Value="@((int?)null)">All Types</MudSelectItem>
+                    @foreach (var itemType in _itemTypes)
+                    {
+                        <MudSelectItem Value="@itemType.Id">@itemType.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="4" Class="d-flex justify-end">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                        EndIcon="@Icons.Material.Filled.Add"
+                        OnClick="@(() => NavigationManager.NavigateTo("/item-catalog/new"))"
+                        Class="mt-4">Add New Item</MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudCardContent>
+</MudCard>
+
+@if (_loading)
+{
+    <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+}
+else
+{
+    <MudTable Items="@FilteredItems" Hover="true" Breakpoint="Breakpoint.Sm"
+             Loading="@_loading" LoadingProgressColor="Color.Info"
+             SortLabel="Sort By" Dense="true">
+        <HeaderContent>
+            <MudTh><MudTableSortLabel SortBy="new Func<ItemDto, object>(x => x.Id)">ID</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortBy="new Func<ItemDto, object>(x => x.Name)">Name</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortBy="new Func<ItemDto, object>(x => x.ItemTypeName)">Type</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortBy="new Func<ItemDto, object>(x => x.FormattedSize)">Size</MudTableSortLabel></MudTh>
+            <MudTh>Actions</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="ID">@context.Id</MudTd>
+            <MudTd DataLabel="Name">@context.Name</MudTd>
+            <MudTd DataLabel="Type">@context.ItemTypeName</MudTd>
+            <MudTd DataLabel="Size">@context.FormattedSize</MudTd>
+            <MudTd>
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small"
+                              OnClick="@(() => NavigationManager.NavigateTo($"/item-catalog/edit/{context.Id}"))" />
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
+                              OnClick="@(() => ConfirmDeleteItem(context))" />
+                <MudIconButton Icon="@Icons.Material.Filled.Visibility" Color="Color.Info" Size="Size.Small"
+                              OnClick="@(() => NavigationManager.NavigateTo($"/inventory/{context.Id}"))" 
+                              Title="View Inventory" />
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText>No matching items found</MudText>
+        </NoRecordsContent>
+        <PagerContent>
+            <MudTablePager />
+        </PagerContent>
+    </MudTable>
+
+    <MudGrid Class="mt-4">
+        <MudItem xs="12" sm="6" md="3">
+            <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="@(() => NavigationManager.NavigateTo("/item-types"))" FullWidth="true">
+                <MudIcon Icon="@Icons.Material.Filled.Category" Class="mr-2" /> Manage Item Types
+            </MudButton>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="@(() => NavigationManager.NavigateTo("/sizes"))" FullWidth="true">
+                <MudIcon Icon="@Icons.Material.Filled.FormatSize" Class="mr-2" /> Manage Sizes
+            </MudButton>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    private List<ItemDto> _items = new();
+    private List<ItemTypeDto> _itemTypes = new();
+    private bool _loading = true;
+    private string _searchString = "";
+    private int? _selectedItemTypeId = null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        _loading = true;
+        
+        try
+        {
+            var itemsTask = ItemService.GetItemsAsync();
+            var itemTypesTask = ItemTypeService.GetItemTypesAsync();
+            
+            await Task.WhenAll(itemsTask, itemTypesTask);
+            
+            _items = await itemsTask;
+            _itemTypes = await itemTypesTask;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading item data: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private IEnumerable<ItemDto> FilteredItems => _items
+        .Where(i => 
+            (string.IsNullOrWhiteSpace(_searchString) || i.Name.Contains(_searchString, StringComparison.OrdinalIgnoreCase)) && 
+            (!_selectedItemTypeId.HasValue || i.ItemTypeId == _selectedItemTypeId.Value)
+        );
+
+    private async Task ConfirmDeleteItem(ItemDto item)
+    {
+        var confirmed = await DialogService.ShowMessageBox(
+            "Confirm Delete",
+            $"Are you sure you want to delete item '{item.Name}'? This action cannot be undone.",
+            yesText: "Delete", 
+            cancelText: "Cancel");
+            
+        if (confirmed == true)
+        {
+            await DeleteItem(item.Id);
+        }
+    }
+
+    private async Task DeleteItem(int id)
+    {
+        _loading = true;
+        
+        try
+        {
+            var success = await ItemService.DeleteItemAsync(id);
+            
+            if (success)
+            {
+                Snackbar.Add("Item deleted successfully", Severity.Success);
+                await LoadData(); // Reload the list
+            }
+            else
+            {
+                Snackbar.Add("Failed to delete item. It may have associated inventory or transactions.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error deleting item: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+}

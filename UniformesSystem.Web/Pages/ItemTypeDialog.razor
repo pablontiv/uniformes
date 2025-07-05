@@ -1,0 +1,97 @@
+@using MudBlazor
+@using MudBlazor.Utilities
+@using UniformesSystem.Web.Models
+@using UniformesSystem.Web.Services
+@using Microsoft.AspNetCore.Components.Forms
+@inject ItemTypeService ItemTypeService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <EditForm Model="@_itemType" OnValidSubmit="HandleValidSubmit">
+            <DataAnnotationsValidator />
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_itemType.Name" Label="Item Type Name" Required="true"
+                                 For="@(() => _itemType.Name)" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_itemType.Description" Label="Description"
+                                Lines="3" For="@(() => _itemType.Description)" />
+                </MudItem>
+                <MudItem xs="12">
+                    <ValidationSummary />
+                </MudItem>
+            </MudGrid>
+        </EditForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="HandleValidSubmit">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] public dynamic MudDialog { get; set; } = null!;
+    [Parameter] public ItemTypeDto? ItemType { get; set; }
+
+    private ItemTypeDto _itemType = new();
+    private bool _isNew => ItemType == null || ItemType.Id == 0;
+
+    protected override void OnInitialized()
+    {
+        if (ItemType != null)
+        {
+            _itemType = new ItemTypeDto
+            {
+                Id = ItemType.Id,
+                Name = ItemType.Name,
+                Description = ItemType.Description
+            };
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        try
+        {
+            bool success;
+
+            if (_isNew)
+            {
+                success = await ItemTypeService.CreateItemTypeAsync(_itemType);
+                if (success)
+                {
+                    Snackbar.Add("Item type created successfully", Severity.Success);
+                    MudDialog.Close(DialogResult.Ok(true));
+                }
+                else
+                {
+                    Snackbar.Add("Failed to create item type", Severity.Error);
+                }
+            }
+            else
+            {
+                success = await ItemTypeService.UpdateItemTypeAsync(_itemType.Id, _itemType);
+                if (success)
+                {
+                    Snackbar.Add("Item type updated successfully", Severity.Success);
+                    MudDialog.Close(DialogResult.Ok(true));
+                }
+                else
+                {
+                    Snackbar.Add("Failed to update item type", Severity.Error);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+}

@@ -17,5 +17,15 @@ namespace UniformesSystem.Web.Models
         
         [StringLength(500)]
         public string? Description { get; set; }
+        
+        [Required]
+        public int SizeId { get; set; }
+        
+        public string SizeValue { get; set; } = string.Empty;
+        
+        public SizeSystem SizeSystem { get; set; }
+        
+        // Display helper
+        public string FormattedSize => $"{SizeValue} ({SizeSystem})";
     }
 }
