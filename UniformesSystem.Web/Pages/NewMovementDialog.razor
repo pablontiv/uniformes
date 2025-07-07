@@ -1,0 +1,222 @@
+@using MudBlazor
+@using MudBlazor.Utilities
+@using UniformesSystem.Web.Models
+@using UniformesSystem.Web.Services
+@using Microsoft.AspNetCore.Components.Forms
+@using System.ComponentModel.DataAnnotations
+@inject WarehouseMovementService WarehouseMovementService
+@inject ItemService ItemService
+@inject EmployeeService EmployeeService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <EditForm Model="@_movement" OnValidSubmit="HandleValidSubmit">
+            <DataAnnotationsValidator />
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudSelect T="int" Label="Movement Type" Required="true" 
+                              @bind-Value="_movement.MovementTypeId">
+                        <MudSelectItem Value="1">Purchase Receipt</MudSelectItem>
+                        <MudSelectItem Value="2">Inventory Adjustment</MudSelectItem>
+                        <MudSelectItem Value="3">Employee Return</MudSelectItem>
+                        <MudSelectItem Value="4">Employee Issuance</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                
+                @if (_movement.MovementTypeId == 3 || _movement.MovementTypeId == 4)
+                {
+                    <MudItem xs="12">
+                        <MudSelect T="int?" Label="Employee" Required="true" 
+                                  @bind-Value="_movement.EmployeeId">
+                            @foreach (var employee in _employees)
+                            {
+                                <MudSelectItem Value="@employee.Id">@employee.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                }
+                
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_movement.Notes" 
+                                 Label="Notes" 
+                                 Lines="2" />
+                </MudItem>
+                
+                <MudItem xs="12">
+                    <MudDivider />
+                    <MudText Typo="Typo.h6" Class="my-4">Items</MudText>
+                    
+                    @foreach (var detail in _movement.Details)
+                    {
+                        <MudGrid Class="mb-2">
+                            <MudItem xs="6">
+                                <MudSelect T="int" Label="Item" Required="true" 
+                                          @bind-Value="detail.ItemId">
+                                    @foreach (var item in _items)
+                                    {
+                                        <MudSelectItem Value="@item.Id">@item.Name (@item.SizeValue)</MudSelectItem>
+                                    }
+                                </MudSelect>
+                            </MudItem>
+                            <MudItem xs="4">
+                                <MudNumericField @bind-Value="detail.Quantity" 
+                                               Label="Quantity" 
+                                               Required="true" 
+                                               Min="1" />
+                            </MudItem>
+                            <MudItem xs="2" Class="d-flex align-center justify-center">
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                             Color="Color.Error" 
+                                             OnClick="@(() => RemoveItem(detail))" />
+                            </MudItem>
+                        </MudGrid>
+                    }
+                    
+                    <MudButton Variant="Variant.Outlined" 
+                              StartIcon="@Icons.Material.Filled.Add" 
+                              Color="Color.Primary" 
+                              OnClick="AddItem" 
+                              Class="mt-4">
+                        Add Item
+                    </MudButton>
+                </MudItem>
+                
+                @if (_validationErrors.Any())
+                {
+                    <MudItem xs="12">
+                        <MudAlert Severity="Severity.Error" Class="mt-2">
+                            <ul class="mb-0">
+                                @foreach (var error in _validationErrors)
+                                {
+                                    <li>@error</li>
+                                }
+                            </ul>
+                        </MudAlert>
+                    </MudItem>
+                }
+            </MudGrid>
+        </EditForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="HandleValidSubmit">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] public dynamic MudDialog { get; set; } = null!;
+    
+    private WarehouseMovementDto _movement = new()
+    {
+        Date = DateTime.Today,
+        MovementTypeId = 1, // Default: Purchase Receipt
+        Details = new List<WarehouseMovementDetailDto>()
+    };
+    
+    private List<EmployeeDto> _employees = new();
+    private List<ItemDto> _items = new();
+    private List<string> _validationErrors = new();
+    
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadEmployees();
+        await LoadItems();
+        
+        // Add first item row by default
+        AddItem();
+    }
+    
+    private async Task LoadEmployees()
+    {
+        try
+        {
+            _employees = await EmployeeService.GetEmployeesAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading employees: {ex.Message}", Severity.Error);
+        }
+    }
+    
+    private async Task LoadItems()
+    {
+        try
+        {
+            _items = await ItemService.GetItemsAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading items: {ex.Message}", Severity.Error);
+        }
+    }
+    
+    private void AddItem()
+    {
+        _movement.Details.Add(new WarehouseMovementDetailDto
+        {
+            Quantity = 1
+        });
+    }
+    
+    private void RemoveItem(WarehouseMovementDetailDto detail)
+    {
+        _movement.Details.Remove(detail);
+    }
+    
+    private async Task HandleValidSubmit()
+    {
+        _validationErrors.Clear();
+        
+        // Basic validations
+        if (_movement.Details.Count == 0)
+        {
+            _validationErrors.Add("At least one item is required");
+            return;
+        }
+        
+        if ((_movement.MovementTypeId == 3 || _movement.MovementTypeId == 4) && !_movement.EmployeeId.HasValue)
+        {
+            _validationErrors.Add("Employee is required for returns and issuances");
+            return;
+        }
+        
+        foreach (var detail in _movement.Details)
+        {
+            if (detail.ItemId <= 0)
+            {
+                _validationErrors.Add("Please select an item for all entries");
+                return;
+            }
+            
+            if (detail.Quantity <= 0)
+            {
+                _validationErrors.Add("Quantity must be greater than zero for all items");
+                return;
+            }
+        }
+        
+        try
+        {
+            var success = await WarehouseMovementService.CreateMovementAsync(_movement);
+            if (success)
+            {
+                Snackbar.Add("Warehouse movement created successfully", Severity.Success);
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+            else
+            {
+                Snackbar.Add("Failed to create warehouse movement", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+    }
+    
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+}

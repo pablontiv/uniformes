@@ -1,0 +1,164 @@
+@page "/warehouse-movements/{id:int}"
+@attribute [Authorize(Roles = "Administrator,Inventory Manager")]
+@using MudBlazor
+@using UniformesSystem.Web.Services
+@using UniformesSystem.Web.Models
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Authorization
+@inject WarehouseMovementService WarehouseMovementService
+@inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
+
+<PageTitle>Movement Details - Uniformes Management System</PageTitle>
+
+@if (_loading)
+{
+    <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+}
+else if (_movement == null)
+{
+    <MudAlert Severity="Severity.Error">Movement not found.</MudAlert>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GoBack" Class="mt-4">
+        Back to Movements
+    </MudButton>
+}
+else
+{
+    <MudGrid>
+        <MudItem xs="12">
+            <MudPaper Class="pa-4">
+                <MudGrid>
+                    <MudItem xs="9">
+                        <MudText Typo="Typo.h4">
+                            <MudChip T="string" Color="@GetMovementTypeColor(_movement.MovementTypeId)" Size="Size.Large">
+                                @_movement.MovementTypeName
+                            </MudChip>
+                            Movement Details
+                        </MudText>
+                    </MudItem>
+                    <MudItem xs="3" Class="d-flex justify-end">
+                        <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="GoBack">
+                            <MudIcon Icon="@Icons.Material.Filled.ArrowBack" Class="mr-2" />Back
+                        </MudButton>
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+        </MudItem>
+        
+        <MudItem xs="12" md="6">
+            <MudCard Elevation="2">
+                <MudCardHeader>
+                    <MudText Typo="Typo.h6">Movement Information</MudText>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudList T="string">
+                        <MudListItem T="string">
+                            <MudText Typo="Typo.subtitle1">ID:</MudText>
+                            <MudText Typo="Typo.body1">@_movement.Id</MudText>
+                        </MudListItem>
+                        <MudDivider />
+                        <MudListItem T="string">
+                            <MudText Typo="Typo.subtitle1">Date:</MudText>
+                            <MudText Typo="Typo.body1">@_movement.Date.ToString("yyyy-MM-dd")</MudText>
+                        </MudListItem>
+                        <MudDivider />
+                        <MudListItem T="string">
+                            <MudText Typo="Typo.subtitle1">Type:</MudText>
+                            <MudText Typo="Typo.body1">@_movement.MovementTypeName</MudText>
+                        </MudListItem>
+                        @if (_movement.EmployeeId.HasValue)
+                        {
+                            <MudDivider />
+                            <MudListItem T="string">
+                                <MudText Typo="Typo.subtitle1">Employee:</MudText>
+                                <MudText Typo="Typo.body1">@_movement.EmployeeName</MudText>
+                            </MudListItem>
+                        }
+                        @if (!string.IsNullOrEmpty(_movement.Notes))
+                        {
+                            <MudDivider />
+                            <MudListItem T="string">
+                                <MudText Typo="Typo.subtitle1">Notes:</MudText>
+                                <MudText Typo="Typo.body1">@_movement.Notes</MudText>
+                            </MudListItem>
+                        }
+                    </MudList>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+        
+        <MudItem xs="12" md="6">
+            <MudCard Elevation="2">
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h6">Items</MudText>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudTable Items="@_movement.Details" Hover="true" Bordered="true" Dense="true" Context="detail">
+                        <HeaderContent>
+                            <MudTh>Item</MudTh>
+                            <MudTh>Size</MudTh>
+                            <MudTh>Quantity</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="Item">@detail.ItemName</MudTd>
+                            <MudTd DataLabel="Size">@detail.SizeValue</MudTd>
+                            <MudTd DataLabel="Quantity">@detail.Quantity</MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+    
+    private WarehouseMovementDto? _movement;
+    private bool _loading = true;
+    
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadMovement();
+    }
+    
+    private async Task LoadMovement()
+    {
+        _loading = true;
+        try
+        {
+            _movement = await WarehouseMovementService.GetMovementByIdAsync(Id);
+            if (_movement == null)
+            {
+                Snackbar.Add($"Movement with ID {Id} not found", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading movement: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+    
+    private void GoBack()
+    {
+        NavigationManager.NavigateTo("/warehouse-movements");
+    }
+    
+    private Color GetMovementTypeColor(int movementTypeId)
+    {
+        return movementTypeId switch
+        {
+            1 => Color.Success,  // Purchase Receipt
+            2 => Color.Warning,  // Inventory Adjustment
+            3 => Color.Info,     // Employee Return
+            4 => Color.Error,    // Employee Issuance
+            _ => Color.Default
+        };
+    }
+}

@@ -1,0 +1,85 @@
+@using MudBlazor
+@using UniformesSystem.Web.Models
+@inject NavigationManager NavigationManager
+
+<MudCard Elevation="2" Class="mb-4">
+    <MudCardContent>
+        @if (Loading)
+        {
+            <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+        }
+        else if (Movements == null || !Movements.Any())
+        {
+            <MudText>No warehouse movements found.</MudText>
+        }
+        else
+        {
+            <MudTable Items="@Movements" Dense="true" Hover="true" Bordered="true" Striped="true">
+                <HeaderContent>
+                    <MudTh>Date</MudTh>
+                    <MudTh>Type</MudTh>
+                    <MudTh>Employee</MudTh>
+                    <MudTh>Items</MudTh>
+                    <MudTh>Notes</MudTh>
+                    <MudTh>Actions</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Date">@context.Date.ToString("yyyy-MM-dd")</MudTd>
+                    <MudTd DataLabel="Type">
+                        <MudChip T="string" Color="@GetMovementTypeColor(context.MovementTypeId)" Size="Size.Small">
+                            @context.MovementTypeName
+                        </MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="Employee">@(context.EmployeeName ?? "-")</MudTd>
+                    <MudTd DataLabel="Items">@context.Details.Count items</MudTd>
+                    <MudTd DataLabel="Notes">
+                        @if (string.IsNullOrEmpty(context.Notes))
+                        {
+                            <span>-</span>
+                        }
+                        else
+                        {
+                            <MudTooltip Text="@context.Notes">
+                                <MudText Typo="Typo.body2" Style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px;">
+                                    @context.Notes
+                                </MudText>
+                            </MudTooltip>
+                        }
+                    </MudTd>
+                    <MudTd>
+                        <MudIconButton Icon="@Icons.Material.Filled.Visibility" Color="Color.Primary" Size="Size.Small"
+                                     OnClick="@(() => ViewMovementDetails(context.Id))" />
+                    </MudTd>
+                </RowTemplate>
+                <PagerContent>
+                    <MudTablePager />
+                </PagerContent>
+            </MudTable>
+        }
+    </MudCardContent>
+</MudCard>
+
+@code {
+    [Parameter]
+    public List<WarehouseMovementDto> Movements { get; set; } = new();
+
+    [Parameter]
+    public bool Loading { get; set; }
+
+    private void ViewMovementDetails(int movementId)
+    {
+        NavigationManager.NavigateTo($"/warehouse-movements/{movementId}");
+    }
+
+    private Color GetMovementTypeColor(int movementTypeId)
+    {
+        return movementTypeId switch
+        {
+            1 => Color.Success,  // Purchase Receipt
+            2 => Color.Warning,  // Inventory Adjustment
+            3 => Color.Info,     // Employee Return
+            4 => Color.Error,    // Employee Issuance
+            _ => Color.Default
+        };
+    }
+}

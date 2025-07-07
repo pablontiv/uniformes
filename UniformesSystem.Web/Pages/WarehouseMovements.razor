@@ -1,0 +1,117 @@
+@page "/warehouse-movements"
+@attribute [Authorize(Roles = "Administrator,Inventory Manager")]
+@using MudBlazor
+@using UniformesSystem.Web.Services
+@using UniformesSystem.Web.Models
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Authorization
+@inject WarehouseMovementService WarehouseMovementService
+@inject ItemService ItemService
+@inject EmployeeService EmployeeService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
+
+<PageTitle>Warehouse Movements - Uniformes Management System</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Warehouse Movement Management</MudText>
+
+<MudCard Elevation="4" Class="mb-4">
+    <MudCardContent>
+        <MudGrid>
+            <MudItem xs="8">
+                <MudTextField @bind-Value="_searchTerm" Placeholder="Search movements..."
+                            Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                            IconSize="Size.Medium" Class="mt-0"></MudTextField>
+            </MudItem>
+            <MudItem xs="4" Class="d-flex justify-end">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" 
+                         OnClick="@OpenNewMovementDialog" StartIcon="@Icons.Material.Filled.Add">
+                    New Movement
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudCardContent>
+</MudCard>
+
+<MudTabs Elevation="4" Rounded="true" ApplyEffectsToContainer="true" Class="mt-4">
+    <MudTabPanel Text="All Movements">
+        <WarehouseMovementsTable Movements="_filteredMovements" Loading="_loading" />
+    </MudTabPanel>
+    <MudTabPanel Text="Receipts">
+        <WarehouseMovementsTable Movements="_filteredMovements.Where(m => m.MovementTypeId == 1).ToList()" 
+                                Loading="_loading" />
+    </MudTabPanel>
+    <MudTabPanel Text="Adjustments">
+        <WarehouseMovementsTable Movements="_filteredMovements.Where(m => m.MovementTypeId == 2).ToList()" 
+                                Loading="_loading" />
+    </MudTabPanel>
+    <MudTabPanel Text="Returns">
+        <WarehouseMovementsTable Movements="_filteredMovements.Where(m => m.MovementTypeId == 3).ToList()" 
+                                Loading="_loading" />
+    </MudTabPanel>
+    <MudTabPanel Text="Issuances">
+        <WarehouseMovementsTable Movements="_filteredMovements.Where(m => m.MovementTypeId == 4).ToList()" 
+                                Loading="_loading" />
+    </MudTabPanel>
+</MudTabs>
+
+@code {
+    private bool _loading = true;
+    private List<WarehouseMovementDto> _movements = new();
+    private List<WarehouseMovementDto> _filteredMovements = new();
+    private string _searchTerm = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadMovements();
+    }
+
+    private async Task LoadMovements()
+    {
+        _loading = true;
+        try
+        {
+            _movements = await WarehouseMovementService.GetMovementsAsync();
+            FilterMovements();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading movements: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void FilterMovements()
+    {
+        if (string.IsNullOrWhiteSpace(_searchTerm))
+        {
+            _filteredMovements = _movements.ToList();
+            return;
+        }
+
+        _filteredMovements = _movements
+            .Where(m => 
+                m.Date.ToString("yyyy-MM-dd").Contains(_searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                m.MovementTypeName.Contains(_searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                (m.EmployeeName != null && m.EmployeeName.Contains(_searchTerm, StringComparison.OrdinalIgnoreCase)) ||
+                (m.Notes != null && m.Notes.Contains(_searchTerm, StringComparison.OrdinalIgnoreCase)) ||
+                m.Details.Any(d => d.ItemName.Contains(_searchTerm, StringComparison.OrdinalIgnoreCase))
+            )
+            .ToList();
+    }
+
+    private async Task OpenNewMovementDialog()
+    {
+        var dialog = await DialogService.ShowAsync<NewMovementDialog>("Create New Movement");
+        var result = await dialog.Result;
+        
+        if (result is { Canceled: false })
+        {
+            await LoadMovements();
+        }
+    }
+}

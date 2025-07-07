@@ -1,0 +1,249 @@
+@page "/inventory"
+@attribute [Authorize(Roles = "Administrator,Inventory Manager")]
+@using MudBlazor
+@using UniformesSystem.Web.Services
+@using UniformesSystem.Web.Models
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Authorization
+@inject InventoryService InventoryService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Inventory - Uniformes Management System</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Inventory Management</MudText>
+
+<MudCard Elevation="4" Class="mb-4">
+    <MudCardContent>
+        <MudTextField @bind-Value="_searchTerm" Placeholder="Search inventory..."
+                    Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                    IconSize="Size.Medium" Class="mt-0"></MudTextField>
+    </MudCardContent>
+</MudCard>
+
+<MudGrid>
+    <MudItem xs="12" md="6">
+        <MudCard Elevation="4" Class="mb-4">
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.h6">Inventory Status</MudText>
+                </CardHeaderContent>
+                <CardHeaderActions>
+                    <MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="@(() => LoadInventory())">
+                        <MudIcon Icon="@Icons.Material.Filled.Refresh" Class="mr-2" />Refresh
+                    </MudButton>
+                </CardHeaderActions>
+            </MudCardHeader>
+            <MudCardContent>
+                <MudText Typo="Typo.body2">
+                    @if (_lowStockCount > 0)
+                    {
+                        <MudAlert Severity="Severity.Warning" ShowCloseIcon="false" Class="mb-3">
+                            <MudText>@_lowStockCount items are at or below minimum stock level!</MudText>
+                        </MudAlert>
+                    }
+                    else
+                    {
+                        <MudAlert Severity="Severity.Success" ShowCloseIcon="false" Class="mb-3">
+                            <MudText>All inventory items are above their minimum stock levels.</MudText>
+                        </MudAlert>
+                    }
+                </MudText>
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+    
+    <MudItem xs="12" md="6">
+        <MudCard Elevation="4" Class="mb-4">
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.h6">Inventory Stats</MudText>
+                </CardHeaderContent>
+            </MudCardHeader>
+            <MudCardContent>
+                <MudGrid>
+                    <MudItem xs="6">
+                        <MudText Typo="Typo.subtitle2">Total Items:</MudText>
+                        <MudText Typo="Typo.h5">@_inventoryItems.Count</MudText>
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudText Typo="Typo.subtitle2">Low Stock Items:</MudText>
+                        <MudText Typo="Typo.h5">@_lowStockCount</MudText>
+                    </MudItem>
+                </MudGrid>
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+</MudGrid>
+
+<MudCard Elevation="4">
+    <MudCardHeader>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h6">Inventory Items</MudText>
+        </CardHeaderContent>
+        <CardHeaderActions>
+            <MudToggleIconButton 
+                @bind-Toggled="_showLowStockOnly"
+                Icon="@Icons.Material.Filled.List" 
+                ToggledIcon="@Icons.Material.Filled.Warning" 
+                Color="Color.Default" 
+                ToggledColor="Color.Warning" 
+                Title="Show all inventory" 
+                ToggledTitle="Show low stock only" />
+        </CardHeaderActions>
+    </MudCardHeader>
+    <MudCardContent>
+        @if (_loading)
+        {
+            <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+        }
+        else if (_filteredInventory.Count == 0)
+        {
+            <MudText>No inventory items found.</MudText>
+        }
+        else
+        {
+            <MudTable Items="@_filteredInventory" Dense="true" Hover="true" Bordered="true" Striped="true"
+                     Filter="new Func<InventoryDto, bool>(FilterInventory)" @bind-SelectedItem="_selectedInventoryItem">
+                <HeaderContent>
+                    <MudTh>Item</MudTh>
+                    <MudTh>Size</MudTh>
+                    <MudTh Style="text-align: center">Current Stock</MudTh>
+                    <MudTh Style="text-align: center">Min Stock</MudTh>
+                    <MudTh Style="text-align: center">Status</MudTh>
+                    <MudTh>Actions</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Item">@context.ItemName</MudTd>
+                    <MudTd DataLabel="Size">@context.SizeValue</MudTd>
+                    <MudTd DataLabel="Current Stock" Style="text-align: center">@context.CurrentStock</MudTd>
+                    <MudTd DataLabel="Min Stock" Style="text-align: center">@context.MinimumStock</MudTd>
+                    <MudTd DataLabel="Status" Style="text-align: center">
+                        @if (context.CurrentStock <= context.MinimumStock)
+                        {
+                            <MudChip T="string" Color="Color.Error" Size="Size.Small">Low Stock</MudChip>
+                        }
+                        else
+                        {
+                            <MudChip T="string" Color="Color.Success" Size="Size.Small">In Stock</MudChip>
+                        }
+                    </MudTd>
+                    <MudTd>
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small"
+                                     OnClick="@(() => OpenEditMinimumStockDialog(context))" Title="Edit minimum stock" />
+                    </MudTd>
+                </RowTemplate>
+                <PagerContent>
+                    <MudTablePager />
+                </PagerContent>
+            </MudTable>
+        }
+    </MudCardContent>
+</MudCard>
+
+@code {
+    private bool _loading = true;
+    private List<InventoryDto> _inventoryItems = new();
+    private List<InventoryDto> _filteredInventory = new();
+    private int _lowStockCount = 0;
+    private string _searchTerm = string.Empty;
+    private bool _showLowStockOnly = false;
+    private InventoryDto? _selectedInventoryItem;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadInventory();
+    }
+
+    private async Task LoadInventory()
+    {
+        _loading = true;
+        try
+        {
+            _inventoryItems = await InventoryService.GetInventoryAsync();
+            _lowStockCount = _inventoryItems.Count(i => i.CurrentStock <= i.MinimumStock);
+            FilterInventoryItems();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading inventory: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void FilterInventoryItems()
+    {
+        if (_showLowStockOnly)
+        {
+            _filteredInventory = _inventoryItems
+                .Where(i => i.CurrentStock <= i.MinimumStock)
+                .ToList();
+        }
+        else
+        {
+            _filteredInventory = _inventoryItems.ToList();
+        }
+    }
+
+    private bool FilterInventory(InventoryDto item)
+    {
+        if (string.IsNullOrWhiteSpace(_searchTerm))
+            return true;
+
+        return item.ItemName.Contains(_searchTerm, StringComparison.OrdinalIgnoreCase) ||
+               item.SizeValue.Contains(_searchTerm, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private async Task OpenEditMinimumStockDialog(InventoryDto item)
+    {
+        var parameters = new DialogParameters
+        {
+            { "Title", $"Update Minimum Stock Level for {item.ItemName}" },
+            { "ContentText", "Adjust the minimum stock level for this item." },
+            { "MinimumStock", item.MinimumStock }
+        };
+        
+        var dialog = await DialogService.ShowAsync<MinimumStockDialog>("Edit Minimum Stock", parameters);
+        var result = await dialog.Result;
+        
+        if (result is { Canceled: false } && result.Data is int minimumStock)
+        {
+            await UpdateMinimumStock(item, minimumStock);
+        }
+    }
+
+    private async Task UpdateMinimumStock(InventoryDto item, int minimumStock)
+    {
+        try
+        {
+            var success = await InventoryService.UpdateInventoryStockLevelsAsync(
+                item.Id, 
+                new InventoryDto 
+                { 
+                    Id = item.Id,
+                    CurrentStock = item.CurrentStock,
+                    MinimumStock = minimumStock 
+                }
+            );
+            
+            if (success)
+            {
+                item.MinimumStock = minimumStock;
+                _lowStockCount = _inventoryItems.Count(i => i.CurrentStock <= i.MinimumStock);
+                FilterInventoryItems();
+                Snackbar.Add("Minimum stock level updated successfully", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("Failed to update minimum stock level", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+    }
+}

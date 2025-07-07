@@ -1,0 +1,59 @@
+@using MudBlazor
+@using MudBlazor.Utilities
+@using UniformesSystem.Web.Models
+@using Microsoft.AspNetCore.Components.Forms
+@using System.ComponentModel.DataAnnotations
+
+<MudDialog>
+    <DialogContent>
+        <EditForm Model="@MinimumStockModel" OnValidSubmit="HandleValidSubmit">
+            <DataAnnotationsValidator />
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudNumericField @bind-Value="MinimumStockModel.MinimumStock"
+                                     Label="Minimum Stock Level" Required="true"
+                                     Min="0" FullWidth="true" />
+                </MudItem>
+                <MudItem xs="12">
+                    <ValidationSummary />
+                </MudItem>
+            </MudGrid>
+        </EditForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="HandleValidSubmit">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] public dynamic MudDialog { get; set; } = null!;
+    
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public string ContentText { get; set; } = "";
+    [Parameter] public int MinimumStock { get; set; }
+    
+    private StockLevelModel MinimumStockModel { get; set; } = new();
+    
+    protected override void OnInitialized()
+    {
+        MinimumStockModel = new StockLevelModel { MinimumStock = MinimumStock };
+    }
+
+    private void HandleValidSubmit()
+    {
+        MudDialog.Close(DialogResult.Ok(MinimumStockModel.MinimumStock));
+    }
+    
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+    
+    public class StockLevelModel
+    {
+        [Required]
+        [Range(0, int.MaxValue, ErrorMessage = "Minimum stock must be a positive number")]
+        public int MinimumStock { get; set; }
+    }
+}
