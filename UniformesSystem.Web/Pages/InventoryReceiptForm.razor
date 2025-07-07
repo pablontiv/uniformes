@@ -1,0 +1,448 @@
+@page "/inventory-receipt"
+@attribute [Authorize(Roles = "Administrator,Inventory Manager")]
+@using MudBlazor
+@using UniformesSystem.Web.Services
+@using UniformesSystem.Web.Models
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Authorization
+@using System.ComponentModel.DataAnnotations
+@inject WarehouseMovementService WarehouseMovementService
+@inject ItemService ItemService
+@inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
+
+<PageTitle>Inventory Receipt Processing - Uniformes Management System</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Process Inventory Receipt</MudText>
+
+<MudCard Elevation="4">
+    <MudCardContent>
+        <EditForm Model="@_receipt" OnValidSubmit="HandleValidSubmit">
+            <DataAnnotationsValidator />
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_receiptNumber" 
+                                 Label="Purchase Order/Receipt Number" 
+                                 HelperText="Enter reference number from supplier (optional)" />
+                </MudItem>
+                
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_supplierName" 
+                                 Label="Supplier Name" 
+                                 HelperText="Enter the supplier's name (optional)" />
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_receipt.Notes" 
+                                 Label="Notes" 
+                                 Lines="2"
+                                 HelperText="Additional information about this receipt" />
+                </MudItem>
+                
+                <MudItem xs="12">
+                    <MudDivider />
+                    <MudText Typo="Typo.h6" Class="my-4">Received Items</MudText>
+                    
+                    @if (_receipt.Details.Any())
+                    {
+                        <MudTable Items="@_receipt.Details" Hover="true" Dense="true" Class="mb-4">
+                            <HeaderContent>
+                                <MudTh>Item</MudTh>
+                                <MudTh>Size</MudTh>
+                                <MudTh>Quantity</MudTh>
+                                <MudTh>Action</MudTh>
+                            </HeaderContent>
+                            <RowTemplate Context="detailItem">
+                                <MudTd DataLabel="Item">@GetItemName(detailItem.ItemId)</MudTd>
+                                <MudTd DataLabel="Size">@GetItemSize(detailItem.ItemId)</MudTd>
+                                <MudTd DataLabel="Quantity">
+                                    <MudNumericField @bind-Value="detailItem.Quantity" Min="1" Max="9999" />
+                                </MudTd>
+                                <MudTd>
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                                 Color="Color.Error"
+                                                 Size="Size.Small" 
+                                                 OnClick="@(() => RemoveItem(detailItem))" />
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    }
+                    
+                    <MudExpansionPanels>
+                        <MudExpansionPanel Text="Add Items" IsInitiallyExpanded="@(!_receipt.Details.Any())">
+                            <MudCard Outlined="true" Class="pa-3">
+                                <MudGrid>
+                                    <MudItem xs="12" md="4">
+                                        <MudSelect T="int" Label="Item Category" 
+                                                  @bind-Value="_selectedItemTypeId"
+                                                  HelperText="Filter items by category">
+                                            <MudSelectItem Value="0">All Categories</MudSelectItem>
+                                            @foreach (var type in _itemTypes)
+                                            {
+                                                <MudSelectItem Value="@type.Id">@type.Name</MudSelectItem>
+                                            }
+                                        </MudSelect>
+                                    </MudItem>
+                                    <MudItem xs="12" md="4">
+                                        <MudSelect T="int" Label="Item" 
+                                                  @bind-Value="_selectedItemId">
+                                            @foreach (var item in FilteredItems)
+                                            {
+                                                <MudSelectItem Value="@item.Id">@item.Name - Size: @item.SizeValue</MudSelectItem>
+                                            }
+                                        </MudSelect>
+                                    </MudItem>
+                                    <MudItem xs="12" md="4">
+                                        <MudNumericField @bind-Value="_itemQuantity"
+                                                       Label="Quantity"
+                                                       Min="1" />
+                                    </MudItem>
+                                    <MudItem xs="12" Class="d-flex justify-end">
+                                        <MudButton Variant="Variant.Filled" 
+                                                 Color="Color.Secondary" 
+                                                 OnClick="AddItemToReceipt"
+                                                 Disabled="@(!IsItemSelectionValid())">
+                                            Add Item
+                                        </MudButton>
+                                    </MudItem>
+                                </MudGrid>
+                            </MudCard>
+                            
+                            <MudDivider Class="my-4" />
+                            
+                            <MudText Typo="Typo.h6" Class="mb-2">Batch Entry</MudText>
+                            <MudText Typo="Typo.caption" Class="mb-3">
+                                Enter multiple items in CSV format: "ItemID,Quantity" (one per line)
+                            </MudText>
+                            <MudTextField @bind-Value="_batchEntryText"
+                                         Label="Batch Entry" 
+                                         Lines="4"
+                                         HelperText="Example: 101,5 (ItemID 101, Quantity 5)" />
+                            <div class="d-flex justify-end mt-2">
+                                <MudButton Variant="Variant.Outlined" 
+                                         Color="Color.Primary" 
+                                         OnClick="ProcessBatchEntry">
+                                    Process Batch
+                                </MudButton>
+                            </div>
+                        </MudExpansionPanel>
+                    </MudExpansionPanels>
+                </MudItem>
+                
+                @if (_validationErrors.Any())
+                {
+                    <MudItem xs="12">
+                        <MudAlert Severity="Severity.Error" Class="mt-4">
+                            <ul class="mb-0">
+                                @foreach (var error in _validationErrors)
+                                {
+                                    <li>@error</li>
+                                }
+                            </ul>
+                        </MudAlert>
+                    </MudItem>
+                }
+                
+                <MudItem xs="12" Class="d-flex justify-end mt-4">
+                    <MudButton Variant="Variant.Text"
+                             Color="Color.Default"
+                             OnClick="@(() => NavigationManager.NavigateTo("/warehouse-movements"))"
+                             Class="mr-2">
+                        Cancel
+                    </MudButton>
+                    <MudButton ButtonType="ButtonType.Submit"
+                             Variant="Variant.Filled" 
+                             Color="Color.Primary"
+                             Disabled="@(!_receipt.Details.Any())">
+                        Process Receipt
+                    </MudButton>
+                </MudItem>
+            </MudGrid>
+        </EditForm>
+    </MudCardContent>
+</MudCard>
+
+@if (_showConfirmation)
+{
+    <MudDialog Open="@_showConfirmation">
+        <DialogContent>
+            <MudText>Please confirm the receipt of the following items:</MudText>
+            <MudList T="string" Dense="true" Class="mt-3">
+                @foreach (var detail in _receipt.Details)
+                {
+                    <MudListItem T="string" Icon="@Icons.Material.Filled.CheckBox" Value="@detail.ItemId.ToString()">
+                        @GetItemName(detail.ItemId) (@GetItemSize(detail.ItemId)) - Quantity: @detail.Quantity
+                    </MudListItem>
+                }
+            </MudList>
+            @if (!string.IsNullOrEmpty(_receiptNumber))
+            {
+                <MudText Typo="Typo.subtitle2" Class="mt-3">
+                    Reference Number: @_receiptNumber
+                </MudText>
+            }
+            @if (!string.IsNullOrEmpty(_supplierName))
+            {
+                <MudText Typo="Typo.subtitle2">
+                    Supplier: @_supplierName
+                </MudText>
+            }
+        </DialogContent>
+        <DialogActions>
+            <MudButton OnClick="@(() => _showConfirmation = false)">Cancel</MudButton>
+            <MudButton Color="Color.Primary" 
+                     Variant="Variant.Filled"
+                     OnClick="ConfirmReceipt">
+                Confirm
+            </MudButton>
+        </DialogActions>
+    </MudDialog>
+}
+
+@code {
+    private WarehouseMovementDto _receipt = new()
+    {
+        Date = DateTime.Today,
+        MovementTypeId = 1, // Purchase Receipt
+        Details = new List<WarehouseMovementDetailDto>()
+    };
+
+    private List<ItemDto> _allItems = new();
+    private List<ItemTypeDto> _itemTypes = new();
+    private List<string> _validationErrors = new();
+    private bool _showConfirmation;
+    private int _selectedItemId;
+    private int _selectedItemTypeId;
+    private int _itemQuantity = 1;
+    private string _receiptNumber = string.Empty;
+    private string _supplierName = string.Empty;
+    private string _batchEntryText = string.Empty;
+    
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadItems();
+        await LoadItemTypes();
+    }
+    
+    private async Task LoadItems()
+    {
+        try
+        {
+            _allItems = await ItemService.GetItemsAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading items: {ex.Message}", Severity.Error);
+        }
+    }
+    
+    private async Task LoadItemTypes()
+    {
+        try
+        {
+            // Since we don't have a GetItemTypesAsync method, we'll create a list from the items we have
+            _itemTypes = _allItems
+                .Select(i => new { TypeId = GetItemTypeId(i), TypeName = GetItemTypeName(i) })
+                .Distinct()
+                .Select(t => new ItemTypeDto { Id = t.TypeId, Name = t.TypeName })
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading item types: {ex.Message}", Severity.Error);
+        }
+    }
+    
+    private int GetItemTypeId(ItemDto item)
+    {
+        // Since ItemDto doesn't have TypeId, we'll extract it from the name or use a default value
+        // This is a fallback method - in a real implementation, the model should have this property
+        
+        // Try to extract a type ID from the item name if it follows a pattern like "Type1-ItemName"
+        var nameParts = item.Name?.Split('-');
+        if (nameParts != null && nameParts.Length > 1 && int.TryParse(nameParts[0].Trim().Replace("Type", ""), out int typeId))
+        {
+            return typeId;
+        }
+        
+        // If we can't extract it, return a default based on a hash of the first word of the name
+        string firstWord = item.Name?.Split(' ').FirstOrDefault() ?? "";
+        return Math.Abs(firstWord.GetHashCode() % 5) + 1; // Return a number between 1-5
+    }
+    
+    private string GetItemTypeName(ItemDto item)
+    {
+        // This is a fallback method - in a real implementation, we would have a proper type name
+        int typeId = GetItemTypeId(item);
+        return $"Category {typeId}";
+    }
+
+    private IEnumerable<ItemDto> FilteredItems => _selectedItemTypeId > 0 
+        ? _allItems.Where(i => GetItemTypeId(i) == _selectedItemTypeId)
+        : _allItems;
+
+    private string GetItemName(int itemId)
+    {
+        return _allItems.FirstOrDefault(i => i.Id == itemId)?.Name ?? "Unknown Item";
+    }
+
+    private string GetItemSize(int itemId)
+    {
+        return _allItems.FirstOrDefault(i => i.Id == itemId)?.SizeValue ?? "Unknown Size";
+    }
+    
+    private void AddItemToReceipt()
+    {
+        if (_selectedItemId <= 0 || _itemQuantity <= 0)
+            return;
+            
+        var existingItem = _receipt.Details.FirstOrDefault(d => d.ItemId == _selectedItemId);
+        
+        if (existingItem != null)
+        {
+            existingItem.Quantity += _itemQuantity;
+        }
+        else
+        {
+            _receipt.Details.Add(new WarehouseMovementDetailDto
+            {
+                ItemId = _selectedItemId,
+                Quantity = _itemQuantity
+            });
+        }
+        
+        // Reset selection
+        _selectedItemId = 0;
+        _itemQuantity = 1;
+    }
+    
+    private void ProcessBatchEntry()
+    {
+        if (string.IsNullOrWhiteSpace(_batchEntryText))
+            return;
+            
+        var lines = _batchEntryText.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+        int successCount = 0;
+        List<string> errors = new();
+        
+        foreach (var line in lines)
+        {
+            var parts = line.Split(',');
+            if (parts.Length != 2)
+            {
+                errors.Add($"Invalid format: '{line}'. Expected format: 'ItemID,Quantity'");
+                continue;
+            }
+            
+            if (!int.TryParse(parts[0].Trim(), out int itemId))
+            {
+                errors.Add($"Invalid ItemID in: '{line}'");
+                continue;
+            }
+            
+            if (!int.TryParse(parts[1].Trim(), out int quantity) || quantity <= 0)
+            {
+                errors.Add($"Invalid Quantity in: '{line}'");
+                continue;
+            }
+            
+            if (!_allItems.Any(i => i.Id == itemId))
+            {
+                errors.Add($"Item ID {itemId} not found in: '{line}'");
+                continue;
+            }
+            
+            var existingItem = _receipt.Details.FirstOrDefault(d => d.ItemId == itemId);
+            
+            if (existingItem != null)
+            {
+                existingItem.Quantity += quantity;
+            }
+            else
+            {
+                _receipt.Details.Add(new WarehouseMovementDetailDto
+                {
+                    ItemId = itemId,
+                    Quantity = quantity
+                });
+            }
+            
+            successCount++;
+        }
+        
+        if (errors.Any())
+        {
+            foreach (var error in errors)
+            {
+                Snackbar.Add(error, Severity.Warning);
+            }
+        }
+        
+        if (successCount > 0)
+        {
+            Snackbar.Add($"Successfully processed {successCount} items", Severity.Success);
+            _batchEntryText = string.Empty;
+        }
+    }
+    
+    private void RemoveItem(WarehouseMovementDetailDto detail)
+    {
+        _receipt.Details.Remove(detail);
+    }
+    
+    private bool IsItemSelectionValid()
+    {
+        return _selectedItemId > 0 && _itemQuantity > 0;
+    }
+    
+    private async Task HandleValidSubmit()
+    {
+        _validationErrors.Clear();
+        
+        if (!_receipt.Details.Any())
+        {
+            _validationErrors.Add("At least one item must be added to the receipt");
+            return;
+        }
+        
+        // Add receipt number and supplier to notes if provided
+        var notes = new List<string>();
+        
+        if (!string.IsNullOrWhiteSpace(_receiptNumber))
+            notes.Add($"Receipt/PO#: {_receiptNumber}");
+            
+        if (!string.IsNullOrWhiteSpace(_supplierName))
+            notes.Add($"Supplier: {_supplierName}");
+            
+        if (!string.IsNullOrWhiteSpace(_receipt.Notes))
+            notes.Add(_receipt.Notes);
+            
+        _receipt.Notes = string.Join(" | ", notes);
+
+        // Show confirmation dialog
+        _showConfirmation = true;
+    }
+    
+    private async Task ConfirmReceipt()
+    {
+        _showConfirmation = false;
+        
+        try
+        {
+            var success = await WarehouseMovementService.CreateMovementAsync(_receipt);
+            if (success)
+            {
+                Snackbar.Add("Inventory receipt processed successfully", Severity.Success);
+                NavigationManager.NavigateTo("/warehouse-movements");
+            }
+            else
+            {
+                Snackbar.Add("Failed to process inventory receipt", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+    }
+}

@@ -1,0 +1,396 @@
+@page "/returns-processing"
+@attribute [Authorize(Roles = "Administrator,Inventory Manager")]
+@using MudBlazor
+@using UniformesSystem.Web.Services
+@using UniformesSystem.Web.Models
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Authorization
+@using System.ComponentModel.DataAnnotations
+@inject WarehouseMovementService WarehouseMovementService
+@inject ItemService ItemService
+@inject EmployeeService EmployeeService
+@inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
+
+<PageTitle>Process Employee Returns - Uniformes Management System</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Process Employee Returns</MudText>
+
+<MudCard Elevation="4">
+    <MudCardContent>
+        <EditForm Model="@_return" OnValidSubmit="HandleValidSubmit">
+            <DataAnnotationsValidator />
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudSelect T="int?" Label="Employee" Required="true" 
+                              @bind-Value="_return.EmployeeId"
+                              HelperText="Select the employee returning items"
+                              OnChanged="EmployeeChanged">
+                        @foreach (var employee in _employees)
+                        {
+                            <MudSelectItem Value="@employee.Id">@employee.Name - Group: @employee.GroupName</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    @if (_selectedEmployee != null)
+                    {
+                        <MudPaper Class="pa-4" Elevation="0" Outlined="true">
+                            <MudText Typo="Typo.subtitle1"><b>Employee Type:</b> @_selectedEmployee.EmployeeTypeName</MudText>
+                            <MudText Typo="Typo.subtitle1"><b>Group:</b> @_selectedEmployee.GroupName</MudText>
+                        </MudPaper>
+                    }
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_return.Notes" 
+                                 Label="Return Reason" 
+                                 Lines="2"
+                                 HelperText="Enter reason for return (required)"
+                                 Required="true" />
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    <MudSelect T="string" Label="Return Condition" Required="true"
+                              @bind-Value="_returnCondition"
+                              HelperText="Select the overall condition of the returned items">
+                        <MudSelectItem Value="@("Good")">Good (Can be reused/reissued)</MudSelectItem>
+                        <MudSelectItem Value="@("Damaged")">Damaged (Requires repair)</MudSelectItem>
+                        <MudSelectItem Value="@("Unusable")">Unusable (Must be discarded)</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                
+                @if (_return.EmployeeId.HasValue)
+                {
+                    <MudItem xs="12">
+                        <MudDivider />
+                        <MudText Typo="Typo.h6" Class="my-4">Employee's Previously Issued Items</MudText>
+                        
+                        @if (_loading)
+                        {
+                            <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="my-7" />
+                        }
+                        else if (!_employeeItems.Any())
+                        {
+                            <MudAlert Severity="Severity.Info">
+                                This employee has no previously issued items on record.
+                            </MudAlert>
+                        }
+                        else
+                        {
+                            <MudTable Items="@_employeeItems" Hover="true" Dense="true" Class="mb-4">
+                                <HeaderContent>
+                                    <MudTh>Item</MudTh>
+                                    <MudTh>Size</MudTh>
+                                    <MudTh>Issued Date</MudTh>
+                                    <MudTh>Quantity Issued</MudTh>
+                                    <MudTh>Return</MudTh>
+                                </HeaderContent>
+                                <RowTemplate Context="itemRow">
+                                    <MudTd DataLabel="Item">@itemRow.ItemName</MudTd>
+                                    <MudTd DataLabel="Size">@itemRow.ItemSize</MudTd>
+                                    <MudTd DataLabel="Issued Date">@itemRow.IssuedDate.ToString("yyyy-MM-dd")</MudTd>
+                                    <MudTd DataLabel="Quantity Issued">@itemRow.Quantity</MudTd>
+                                    <MudTd>
+                                        <MudNumericField @bind-Value="itemRow.ReturnQuantity"
+                                                       Min="0"
+                                                       Max="@itemRow.Quantity"
+                                                       Immediate="true"
+                                                       OnBlur="UpdateReturnDetails" />
+                                    </MudTd>
+                                </RowTemplate>
+                            </MudTable>
+                        }
+                    </MudItem>
+                }
+
+                @if (_validationErrors.Any())
+                {
+                    <MudItem xs="12">
+                        <MudAlert Severity="Severity.Error" Class="mt-4">
+                            <ul class="mb-0">
+                                @foreach (var error in _validationErrors)
+                                {
+                                    <li>@error</li>
+                                }
+                            </ul>
+                        </MudAlert>
+                    </MudItem>
+                }
+                
+                <MudItem xs="12" Class="d-flex justify-end">
+                    <MudButton Variant="Variant.Text"
+                             Color="Color.Default"
+                             OnClick="@(() => NavigationManager.NavigateTo("/warehouse-movements"))"
+                             Class="mr-2">
+                        Cancel
+                    </MudButton>
+                    <MudButton ButtonType="ButtonType.Submit"
+                             Variant="Variant.Filled" 
+                             Color="Color.Primary"
+                             Disabled="@(!IsFormValid())">
+                        Process Return
+                    </MudButton>
+                </MudItem>
+            </MudGrid>
+        </EditForm>
+    </MudCardContent>
+</MudCard>
+
+@if (_showConfirmation)
+{
+    <MudDialog Open="@_showConfirmation">
+        <DialogContent>
+            <MudText>Please confirm the return of the following items:</MudText>
+            <MudList T="string" Dense="true" Class="mt-3">
+                @foreach (var detail in _return.Details)
+                {
+                    <MudListItem T="string" Icon="@Icons.Material.Filled.CheckBox" Value="@detail.ItemId.ToString()">
+                        @GetItemName(detail.ItemId) (@GetItemSize(detail.ItemId)) - Quantity: @detail.Quantity
+                    </MudListItem>
+                }
+            </MudList>
+            <MudText Typo="Typo.subtitle2" Class="mt-3">
+                From: @(_selectedEmployee?.Name)
+            </MudText>
+            <MudText Typo="Typo.subtitle2">
+                Condition: @_returnCondition
+            </MudText>
+            <MudText Typo="Typo.subtitle2">
+                Reason: @_return.Notes
+            </MudText>
+        </DialogContent>
+        <DialogActions>
+            <MudButton OnClick="@(() => _showConfirmation = false)">Cancel</MudButton>
+            <MudButton Color="Color.Primary" 
+                     Variant="Variant.Filled"
+                     OnClick="ConfirmReturn">
+                Confirm
+            </MudButton>
+        </DialogActions>
+    </MudDialog>
+}
+
+@code {
+    private class EmployeeItemViewModel
+    {
+        public int ItemId { get; set; }
+        public string ItemName { get; set; } = string.Empty;
+        public string ItemSize { get; set; } = string.Empty;
+        public DateTime IssuedDate { get; set; }
+        public int Quantity { get; set; }
+        public int ReturnQuantity { get; set; }
+        public int MovementId { get; set; }
+    }
+
+    private WarehouseMovementDto _return = new()
+    {
+        Date = DateTime.Today,
+        MovementTypeId = 3, // Employee Return
+        Details = new List<WarehouseMovementDetailDto>()
+    };
+
+    private EmployeeDto? _selectedEmployee;
+    private List<EmployeeDto> _employees = new();
+    private List<ItemDto> _allItems = new();
+    private List<EmployeeItemViewModel> _employeeItems = new();
+    private List<string> _validationErrors = new();
+    private bool _showConfirmation;
+    private bool _loading;
+    private string _returnCondition = "Good";
+    
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadEmployees();
+        await LoadItems();
+    }
+    
+    private async Task LoadEmployees()
+    {
+        try
+        {
+            _employees = await EmployeeService.GetEmployeesAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading employees: {ex.Message}", Severity.Error);
+        }
+    }
+    
+    private async Task LoadItems()
+    {
+        try
+        {
+            _allItems = await ItemService.GetItemsAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading items: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task EmployeeChanged(int? employeeId)
+    {
+        _return.Details.Clear();
+        _employeeItems.Clear();
+        
+        if (employeeId.HasValue)
+        {
+            _selectedEmployee = _employees.FirstOrDefault(e => e.Id == employeeId.Value);
+            
+            if (_selectedEmployee != null)
+            {
+                await LoadEmployeeIssuedItems(employeeId.Value);
+            }
+        }
+        else
+        {
+            _selectedEmployee = null;
+        }
+    }
+
+    private async Task LoadEmployeeIssuedItems(int employeeId)
+    {
+        _loading = true;
+        try
+        {
+            var movements = await WarehouseMovementService.GetEmployeeMovementsAsync(employeeId);
+            
+            // Filter for issuance movements only
+            var issuanceMovements = movements.Where(m => m.MovementTypeId == 4).ToList();
+            
+            _employeeItems = new List<EmployeeItemViewModel>();
+            
+            foreach (var movement in issuanceMovements)
+            {
+                foreach (var detail in movement.Details)
+                {
+                    var item = _allItems.FirstOrDefault(i => i.Id == detail.ItemId);
+                    if (item != null)
+                    {
+                        _employeeItems.Add(new EmployeeItemViewModel
+                        {
+                            ItemId = detail.ItemId,
+                            ItemName = item.Name ?? "Unknown Item",
+                            ItemSize = item.SizeValue ?? "Unknown Size",
+                            IssuedDate = movement.Date,
+                            Quantity = detail.Quantity,
+                            ReturnQuantity = 0,
+                            MovementId = movement.Id
+                        });
+                    }
+                }
+            }
+            
+            // Consolidate items with the same ItemId
+            _employeeItems = _employeeItems
+                .GroupBy(i => i.ItemId)
+                .Select(g => new EmployeeItemViewModel
+                {
+                    ItemId = g.Key,
+                    ItemName = g.First().ItemName,
+                    ItemSize = g.First().ItemSize,
+                    IssuedDate = g.Min(i => i.IssuedDate),
+                    Quantity = g.Sum(i => i.Quantity),
+                    ReturnQuantity = 0,
+                    MovementId = g.First().MovementId
+                })
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading employee items: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void UpdateReturnDetails()
+    {
+        _return.Details.Clear();
+        
+        foreach (var item in _employeeItems)
+        {
+            if (item.ReturnQuantity > 0)
+            {
+                _return.Details.Add(new WarehouseMovementDetailDto
+                {
+                    ItemId = item.ItemId,
+                    Quantity = item.ReturnQuantity
+                });
+            }
+        }
+    }
+
+    private string GetItemName(int itemId)
+    {
+        return _allItems.FirstOrDefault(i => i.Id == itemId)?.Name ?? "Unknown Item";
+    }
+
+    private string GetItemSize(int itemId)
+    {
+        return _allItems.FirstOrDefault(i => i.Id == itemId)?.SizeValue ?? "Unknown Size";
+    }
+    
+    private bool IsFormValid()
+    {
+        return _return.EmployeeId.HasValue 
+            && !string.IsNullOrWhiteSpace(_return.Notes)
+            && _return.Details.Any();
+    }
+    
+    private async Task HandleValidSubmit()
+    {
+        _validationErrors.Clear();
+        
+        if (!_return.EmployeeId.HasValue)
+        {
+            _validationErrors.Add("Employee selection is required");
+            return;
+        }
+        
+        if (!_return.Details.Any())
+        {
+            _validationErrors.Add("At least one item must be returned");
+            return;
+        }
+        
+        if (string.IsNullOrWhiteSpace(_return.Notes))
+        {
+            _validationErrors.Add("Return reason is required");
+            return;
+        }
+
+        // Add condition information to notes
+        _return.Notes = $"Condition: {_returnCondition} | {_return.Notes}";
+
+        // Show confirmation dialog
+        _showConfirmation = true;
+    }
+    
+    private async Task ConfirmReturn()
+    {
+        _showConfirmation = false;
+        
+        try
+        {
+            var success = await WarehouseMovementService.CreateMovementAsync(_return);
+            if (success)
+            {
+                Snackbar.Add("Return processed successfully", Severity.Success);
+                NavigationManager.NavigateTo("/warehouse-movements");
+            }
+            else
+            {
+                Snackbar.Add("Failed to process return", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+    }
+}

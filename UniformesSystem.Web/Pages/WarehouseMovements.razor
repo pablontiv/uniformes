@@ -25,10 +25,23 @@
                             IconSize="Size.Medium" Class="mt-0"></MudTextField>
             </MudItem>
             <MudItem xs="4" Class="d-flex justify-end">
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" 
-                         OnClick="@OpenNewMovementDialog" StartIcon="@Icons.Material.Filled.Add">
-                    New Movement
-                </MudButton>
+                <MudButtonGroup Color="Color.Primary" Variant="Variant.Filled">
+                    <MudButton OnClick="@OpenNewMovementDialog" StartIcon="@Icons.Material.Filled.Add">
+                        New Movement
+                    </MudButton>
+                    <MudButton OnClick="@(() => NavigationManager.NavigateTo("/issue-items"))"
+                             StartIcon="@Icons.Material.Filled.Assignment">
+                        Issue Items
+                    </MudButton>
+                    <MudButton OnClick="@(() => NavigationManager.NavigateTo("/inventory-receipt"))"
+                             StartIcon="@Icons.Material.Filled.ShoppingCart">
+                        Inventory Receipt
+                    </MudButton>
+                    <MudButton OnClick="@(() => NavigationManager.NavigateTo("/returns-processing"))"
+                             StartIcon="@Icons.Material.Filled.AssignmentReturn">
+                        Process Returns
+                    </MudButton>
+                </MudButtonGroup>
             </MudItem>
         </MudGrid>
     </MudCardContent>
