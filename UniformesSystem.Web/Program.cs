@@ -21,6 +21,7 @@ builder.Services.AddScoped<SizeService>();
 builder.Services.AddScoped<InventoryService>();
 builder.Services.AddScoped<WarehouseMovementService>();
 builder.Services.AddScoped<DashboardService>();
+builder.Services.AddScoped<ReportService>();
 builder.Services.AddAuthorizationCore();
 builder.Services.AddHttpClient("UniformesAPI", client =>
 {

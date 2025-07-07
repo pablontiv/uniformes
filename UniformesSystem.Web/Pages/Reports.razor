@@ -1,0 +1,225 @@
+@page "/reports"
+@using UniformesSystem.Web.Models
+@using UniformesSystem.Web.Services
+@inject ReportService ReportService
+@inject ISnackbar Snackbar
+
+<PageTitle>Reports</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <MudText Typo="Typo.h4" Class="mb-4">Reports Dashboard</MudText>
+    
+    <MudGrid>
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard>
+                <MudCardContent>
+                    <MudText Typo="Typo.h6">Total Items</MudText>
+                    <MudText Typo="Typo.h4" Color="Color.Primary">@summary.TotalItems</MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+        
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard>
+                <MudCardContent>
+                    <MudText Typo="Typo.h6">Total Inventory</MudText>
+                    <MudText Typo="Typo.h4" Color="Color.Success">@summary.TotalInventoryQuantity</MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+        
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard>
+                <MudCardContent>
+                    <MudText Typo="Typo.h6">Low Stock Items</MudText>
+                    <MudText Typo="Typo.h4" Color="Color.Warning">@summary.LowStockItemsCount</MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+        
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard>
+                <MudCardContent>
+                    <MudText Typo="Typo.h6">Total Employees</MudText>
+                    <MudText Typo="Typo.h4" Color="Color.Info">@summary.TotalEmployees</MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+
+    <MudTabs Elevation="4" Rounded="true" PanelClass="pa-6 mt-4">
+        <MudTabPanel Text="Inventory Report">
+            <MudTable Items="@inventoryReport" Hover="true" Breakpoint="Breakpoint.Sm" LoadingProgressColor="Color.Info">
+                <HeaderContent>
+                    <MudTh>Item</MudTh>
+                    <MudTh>Type</MudTh>
+                    <MudTh>Size</MudTh>
+                    <MudTh>Current Stock</MudTh>
+                    <MudTh>Min Stock</MudTh>
+                    <MudTh>Status</MudTh>
+                    <MudTh>Last Updated</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Item">@context.ItemName</MudTd>
+                    <MudTd DataLabel="Type">@context.ItemType</MudTd>
+                    <MudTd DataLabel="Size">@context.SizeName</MudTd>
+                    <MudTd DataLabel="Current Stock">@context.CurrentStock</MudTd>
+                    <MudTd DataLabel="Min Stock">@context.MinimumStock</MudTd>
+                    <MudTd DataLabel="Status">
+                        <MudChip T="string" Color="@GetStockStatusColor(context.StockStatus)" Size="Size.Small">
+                            @context.StockStatus
+                        </MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="Last Updated">@context.LastUpdated.ToString("dd/MM/yyyy")</MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudTabPanel>
+
+        <MudTabPanel Text="Transaction History">
+            <MudGrid Class="mb-4">
+                <MudItem xs="12" md="6">
+                    <MudDateRangePicker Label="Date Range" @bind-DateRange="dateRange" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="FilterTransactions">
+                        Filter
+                    </MudButton>
+                </MudItem>
+            </MudGrid>
+            
+            <MudTable Items="@transactionReport" Hover="true" Breakpoint="Breakpoint.Sm" LoadingProgressColor="Color.Info">
+                <HeaderContent>
+                    <MudTh>Date</MudTh>
+                    <MudTh>Type</MudTh>
+                    <MudTh>Employee</MudTh>
+                    <MudTh>Item</MudTh>
+                    <MudTh>Size</MudTh>
+                    <MudTh>Quantity</MudTh>
+                    <MudTh>Notes</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Date">@context.Date.ToString("dd/MM/yyyy")</MudTd>
+                    <MudTd DataLabel="Type">@context.MovementType</MudTd>
+                    <MudTd DataLabel="Employee">@context.EmployeeName</MudTd>
+                    <MudTd DataLabel="Item">@context.ItemName</MudTd>
+                    <MudTd DataLabel="Size">@context.SizeName</MudTd>
+                    <MudTd DataLabel="Quantity">@context.Quantity</MudTd>
+                    <MudTd DataLabel="Notes">@context.Notes</MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudTabPanel>
+
+        <MudTabPanel Text="Employee Uniforms">
+            <MudTable Items="@employeeUniformReport" Hover="true" Breakpoint="Breakpoint.Sm" LoadingProgressColor="Color.Info">
+                <HeaderContent>
+                    <MudTh>Employee</MudTh>
+                    <MudTh>Group</MudTh>
+                    <MudTh>Item</MudTh>
+                    <MudTh>Size</MudTh>
+                    <MudTh>Quantity</MudTh>
+                    <MudTh>Issue Date</MudTh>
+                    <MudTh>Notes</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Employee">@context.EmployeeName</MudTd>
+                    <MudTd DataLabel="Group">@context.GroupName</MudTd>
+                    <MudTd DataLabel="Item">@context.ItemName</MudTd>
+                    <MudTd DataLabel="Size">@context.SizeName</MudTd>
+                    <MudTd DataLabel="Quantity">@context.QuantityIssued</MudTd>
+                    <MudTd DataLabel="Issue Date">@context.IssuanceDate.ToString("dd/MM/yyyy")</MudTd>
+                    <MudTd DataLabel="Notes">@context.Notes</MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudTabPanel>
+
+        <MudTabPanel Text="Low Stock Alert">
+            <MudTable Items="@lowStockReport" Hover="true" Breakpoint="Breakpoint.Sm" LoadingProgressColor="Color.Info">
+                <HeaderContent>
+                    <MudTh>Item</MudTh>
+                    <MudTh>Type</MudTh>
+                    <MudTh>Size</MudTh>
+                    <MudTh>Current Stock</MudTh>
+                    <MudTh>Min Stock</MudTh>
+                    <MudTh>Deficit</MudTh>
+                    <MudTh>Last Updated</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Item">@context.ItemName</MudTd>
+                    <MudTd DataLabel="Type">@context.ItemType</MudTd>
+                    <MudTd DataLabel="Size">@context.SizeName</MudTd>
+                    <MudTd DataLabel="Current Stock">@context.CurrentStock</MudTd>
+                    <MudTd DataLabel="Min Stock">@context.MinimumStock</MudTd>
+                    <MudTd DataLabel="Deficit">
+                        <MudChip T="string" Color="Color.Error" Size="Size.Small">
+                            @context.StockDeficit
+                        </MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="Last Updated">@context.LastUpdated.ToString("dd/MM/yyyy")</MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudTabPanel>
+    </MudTabs>
+</MudContainer>
+
+@code {
+    private List<InventoryReportDto> inventoryReport = new();
+    private List<TransactionReportDto> transactionReport = new();
+    private List<EmployeeUniformReportDto> employeeUniformReport = new();
+    private List<LowStockReportDto> lowStockReport = new();
+    private ReportSummaryDto summary = new();
+    private DateRange dateRange = new DateRange(DateTime.Now.AddDays(-30), DateTime.Now);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAllReports();
+    }
+
+    private async Task LoadAllReports()
+    {
+        try
+        {
+            var inventoryTask = ReportService.GetInventoryReportAsync();
+            var transactionTask = ReportService.GetTransactionReportAsync();
+            var employeeUniformTask = ReportService.GetEmployeeUniformReportAsync();
+            var lowStockTask = ReportService.GetLowStockReportAsync();
+            var summaryTask = ReportService.GetReportSummaryAsync();
+
+            await Task.WhenAll(inventoryTask, transactionTask, employeeUniformTask, lowStockTask, summaryTask);
+
+            inventoryReport = await inventoryTask;
+            transactionReport = await transactionTask;
+            employeeUniformReport = await employeeUniformTask;
+            lowStockReport = await lowStockTask;
+            summary = await summaryTask;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading reports: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task FilterTransactions()
+    {
+        try
+        {
+            transactionReport = await ReportService.GetTransactionReportAsync(
+                dateRange.Start,
+                dateRange.End
+            );
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error filtering transactions: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private Color GetStockStatusColor(string status)
+    {
+        return status switch
+        {
+            "Low Stock" => Color.Warning,
+            "Adequate" => Color.Success,
+            _ => Color.Default
+        };
+    }
+}
