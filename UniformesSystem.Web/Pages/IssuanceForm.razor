@@ -217,7 +217,7 @@
         }
     }
 
-    private async Task EmployeeChanged(int? employeeId)
+    private void EmployeeChanged(int? employeeId)
     {
         if (employeeId.HasValue)
         {
@@ -313,7 +313,7 @@
         return _issuance.EmployeeId.HasValue && _issuance.Details.Any();
     }
     
-    private async Task HandleValidSubmit()
+    private void HandleValidSubmit()
     {
         _validationErrors.Clear();
         

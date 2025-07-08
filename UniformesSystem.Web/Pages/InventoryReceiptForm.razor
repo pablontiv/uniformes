@@ -220,7 +220,7 @@
     protected override async Task OnInitializedAsync()
     {
         await LoadItems();
-        await LoadItemTypes();
+        LoadItemTypes();
     }
     
     private async Task LoadItems()
@@ -235,7 +235,7 @@
         }
     }
     
-    private async Task LoadItemTypes()
+    private void LoadItemTypes()
     {
         try
         {
@@ -388,7 +388,7 @@
         return _selectedItemId > 0 && _itemQuantity > 0;
     }
     
-    private async Task HandleValidSubmit()
+    private void HandleValidSubmit()
     {
         _validationErrors.Clear();
         

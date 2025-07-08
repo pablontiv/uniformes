@@ -44,7 +44,7 @@ else
 
 @code {
     [Parameter] public int GroupId { get; set; }
-    [Parameter] public string GroupName { get; set; }
+    [Parameter] public string GroupName { get; set; } = string.Empty;
     
     private List<EmployeeDto> _employees = new();
     private bool _loading = true;

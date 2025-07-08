@@ -83,7 +83,7 @@
             
             if (!_isNew)
             {
-                var employee = await EmployeeService.GetEmployeeByIdAsync(Id.Value);
+                var employee = await EmployeeService.GetEmployeeByIdAsync(Id!.Value);
                 if (employee != null)
                 {
                     _employee = employee;
@@ -118,7 +118,7 @@
             }
             else
             {
-                success = await EmployeeService.UpdateEmployeeAsync(Id.Value, _employee);
+                success = await EmployeeService.UpdateEmployeeAsync(Id!.Value, _employee);
             }
             
             if (success)
