@@ -60,7 +60,7 @@ else
         
         try
         {
-            var allEmployees = await EmployeeService.GetEmployeesAsync();
+            var allEmployees = await EmployeeService.GetAllEmployeesAsync();
             _employees = allEmployees.Where(e => e.GroupId == GroupId).ToList();
         }
         catch (Exception ex)

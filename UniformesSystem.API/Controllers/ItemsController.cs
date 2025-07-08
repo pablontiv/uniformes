@@ -25,14 +25,46 @@ namespace UniformesSystem.API.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<ItemDTO>>> GetItems()
+        public async Task<ActionResult<PagedResultDTO<ItemDTO>>> GetItems(
+            int page = 1, 
+            int pageSize = 50, 
+            string? search = null,
+            int? itemTypeId = null)
         {
-            var items = await _context.Items
+            if (page < 1) page = 1;
+            if (pageSize < 1 || pageSize > 100) pageSize = 50;
+
+            var query = _context.Items
                 .Include(i => i.ItemType)
                 .Include(i => i.Size)
+                .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                query = query.Where(i => i.Name.Contains(search));
+            }
+
+            if (itemTypeId.HasValue)
+            {
+                query = query.Where(i => i.ItemTypeId == itemTypeId.Value);
+            }
+
+            var totalCount = await query.CountAsync();
+            var items = await query
+                .OrderBy(i => i.Name)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .ToListAsync();
-                
-            return Ok(_mapper.Map<IEnumerable<ItemDTO>>(items));
+
+            var result = new PagedResultDTO<ItemDTO>
+            {
+                Items = _mapper.Map<IEnumerable<ItemDTO>>(items),
+                TotalCount = totalCount,
+                Page = page,
+                PageSize = pageSize
+            };
+
+            return Ok(result);
         }
 
         [HttpGet("{id}")]
@@ -76,7 +108,6 @@ namespace UniformesSystem.API.Controllers
             _context.Items.Add(item);
             await _context.SaveChangesAsync();
 
-            // Also create an inventory entry for the item
             var inventory = new Inventory
             {
                 ItemId = item.ItemId,
@@ -87,7 +118,6 @@ namespace UniformesSystem.API.Controllers
             _context.Inventory.Add(inventory);
             await _context.SaveChangesAsync();
 
-            // Reload with relations for response
             await _context.Entry(item).Reference(i => i.ItemType).LoadAsync();
             await _context.Entry(item).Reference(i => i.Size).LoadAsync();
 
@@ -142,7 +172,6 @@ namespace UniformesSystem.API.Controllers
                 return NotFound();
             }
 
-            // Check if the item has any warehouse movements
             var hasWarehouseMovements = await _context.WarehouseMovementDetails
                 .AnyAsync(wmd => wmd.ItemId == id);
                 
@@ -151,7 +180,6 @@ namespace UniformesSystem.API.Controllers
                 return BadRequest("Cannot delete an item with associated warehouse movements.");
             }
 
-            // Delete associated inventory entry first
             var inventory = await _context.Inventory.FindAsync(id);
             if (inventory != null)
             {
@@ -343,7 +371,6 @@ namespace UniformesSystem.API.Controllers
                 return NotFound("Employee type not found.");
             }
             
-            // Check if relationship already exists
             var exists = await _context.ItemTypeEmployeeTypes
                 .AnyAsync(ite => ite.ItemTypeId == dto.ItemTypeId && ite.EmployeeTypeId == dto.EmployeeTypeId);
                 
@@ -356,7 +383,6 @@ namespace UniformesSystem.API.Controllers
             _context.ItemTypeEmployeeTypes.Add(itemTypeEmployeeType);
             await _context.SaveChangesAsync();
             
-            // Load related entities for response
             await _context.Entry(itemTypeEmployeeType).Reference(ite => ite.ItemType).LoadAsync();
             await _context.Entry(itemTypeEmployeeType).Reference(ite => ite.EmployeeType).LoadAsync();
             

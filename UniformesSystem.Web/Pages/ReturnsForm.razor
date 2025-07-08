@@ -187,7 +187,6 @@
     private WarehouseMovementDto _return = new()
     {
         Date = DateTime.Today,
-        MovementTypeId = 3, // Employee Return
         Details = new List<WarehouseMovementDetailDto>()
     };
 
@@ -210,7 +209,7 @@
     {
         try
         {
-            _employees = await EmployeeService.GetEmployeesAsync();
+            _employees = await EmployeeService.GetAllEmployeesAsync();
         }
         catch (Exception ex)
         {
@@ -257,7 +256,6 @@
         {
             var movements = await WarehouseMovementService.GetEmployeeMovementsAsync(employeeId);
             
-            // Filter for issuance movements only
             var issuanceMovements = movements.Where(m => m.MovementTypeId == 4).ToList();
             
             _employeeItems = new List<EmployeeItemViewModel>();
@@ -283,7 +281,6 @@
                 }
             }
             
-            // Consolidate items with the same ItemId
             _employeeItems = _employeeItems
                 .GroupBy(i => i.ItemId)
                 .Select(g => new EmployeeItemViewModel
@@ -364,10 +361,8 @@
             return;
         }
 
-        // Add condition information to notes
         _return.Notes = $"Condition: {_returnCondition} | {_return.Notes}";
 
-        // Show confirmation dialog
         _showConfirmation = true;
     }
     

@@ -94,7 +94,6 @@
         
         try
         {
-            // Load item types and sizes in parallel
             var itemTypesTask = ItemTypeService.GetItemTypesAsync();
             var sizesTask = SizeService.GetSizesAsync();
             
@@ -105,7 +104,6 @@
             
             if (!_isNew)
             {
-                // Load item data for edit mode
                 var item = await ItemService.GetItemByIdAsync(Id!.Value);
                 if (item != null)
                 {

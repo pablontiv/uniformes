@@ -12,19 +12,35 @@ namespace UniformesSystem.Web.Services
             _httpClient = httpClientFactory.CreateClient("UniformesAPI");
         }
 
-        public async Task<List<EmployeeDto>> GetEmployeesAsync()
+        public async Task<PagedResultDto<EmployeeDto>> GetEmployeesAsync(int page = 1, int pageSize = 50, string? search = null)
         {
             try
             {
-                var response = await _httpClient.GetAsync("api/employees");
+                var query = $"api/employees?page={page}&pageSize={pageSize}";
+                if (!string.IsNullOrWhiteSpace(search))
+                    query += $"&search={Uri.EscapeDataString(search)}";
+
+                var response = await _httpClient.GetAsync(query);
                 response.EnsureSuccessStatusCode();
                 
-                var employees = await response.Content.ReadFromJsonAsync<List<EmployeeDto>>();
-                return employees ?? new List<EmployeeDto>();
+                var result = await response.Content.ReadFromJsonAsync<PagedResultDto<EmployeeDto>>();
+                return result ?? new PagedResultDto<EmployeeDto>();
             }
             catch (Exception)
             {
-                // Log the exception if needed
+                return new PagedResultDto<EmployeeDto>();
+            }
+        }
+
+        public async Task<List<EmployeeDto>> GetAllEmployeesAsync()
+        {
+            try
+            {
+                var result = await GetEmployeesAsync(1, 1000);
+                return result.Items.ToList();
+            }
+            catch (Exception)
+            {
                 return new List<EmployeeDto>();
             }
         }
@@ -40,7 +56,6 @@ namespace UniformesSystem.Web.Services
             }
             catch (Exception)
             {
-                // Log the exception if needed
                 return null;
             }
         }
@@ -54,7 +69,6 @@ namespace UniformesSystem.Web.Services
             }
             catch (Exception)
             {
-                // Log the exception if needed
                 return false;
             }
         }
@@ -68,7 +82,6 @@ namespace UniformesSystem.Web.Services
             }
             catch (Exception)
             {
-                // Log the exception if needed
                 return false;
             }
         }
@@ -82,7 +95,6 @@ namespace UniformesSystem.Web.Services
             }
             catch (Exception)
             {
-                // Log the exception if needed
                 return false;
             }
         }

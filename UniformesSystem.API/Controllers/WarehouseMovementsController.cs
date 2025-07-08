@@ -25,17 +25,44 @@ namespace UniformesSystem.API.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<WarehouseMovementDTO>>> GetWarehouseMovements()
+        public async Task<ActionResult<PagedResultDTO<WarehouseMovementDTO>>> GetWarehouseMovements(
+            int page = 1, 
+            int pageSize = 50,
+            DateTime? startDate = null,
+            DateTime? endDate = null)
         {
-            var movements = await _context.WarehouseMovements
+            if (page < 1) page = 1;
+            if (pageSize < 1 || pageSize > 100) pageSize = 50;
+
+            var query = _context.WarehouseMovements
                 .Include(wm => wm.Employee)
                 .Include(wm => wm.Details)
                 .ThenInclude(d => d.Item)
                 .ThenInclude(i => i.Size)
+                .AsQueryable();
+
+            if (startDate.HasValue)
+                query = query.Where(wm => wm.Date >= startDate.Value);
+
+            if (endDate.HasValue)
+                query = query.Where(wm => wm.Date <= endDate.Value);
+
+            var totalCount = await query.CountAsync();
+            var movements = await query
                 .OrderByDescending(wm => wm.Date)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .ToListAsync();
-                
-            return Ok(_mapper.Map<IEnumerable<WarehouseMovementDTO>>(movements));
+
+            var result = new PagedResultDTO<WarehouseMovementDTO>
+            {
+                Items = _mapper.Map<IEnumerable<WarehouseMovementDTO>>(movements),
+                TotalCount = totalCount,
+                Page = page,
+                PageSize = pageSize
+            };
+
+            return Ok(result);
         }
 
         [HttpGet("{id}")]
@@ -64,13 +91,11 @@ namespace UniformesSystem.API.Controllers
                 return BadRequest(ModelState);
             }
             
-            // For issuance movements (reduction), employee is required
             if (movementDto.MovementType == MovementType.EmployeeIssuance && !movementDto.EmployeeId.HasValue)
             {
                 return BadRequest("Employee ID is required for issuance movements.");
             }
             
-            // If employee ID is provided, verify it exists
             if (movementDto.EmployeeId.HasValue)
             {
                 var employeeExists = await _context.Employees.AnyAsync(e => e.EmployeeId == movementDto.EmployeeId);
@@ -79,7 +104,6 @@ namespace UniformesSystem.API.Controllers
                     return BadRequest("The specified employee does not exist.");
                 }
                 
-                // For issuance movements, verify item types are allowed for the employee's type
                 if (movementDto.MovementType == MovementType.EmployeeIssuance)
                 {
                     var employee = await _context.Employees
@@ -102,7 +126,6 @@ namespace UniformesSystem.API.Controllers
                             return BadRequest($"Item with ID {detail.ItemId} does not exist.");
                         }
                         
-                        // Check if this item type is allowed for this employee's type
                         var isAllowed = await _context.ItemTypeEmployeeTypes
                             .AnyAsync(ite => ite.ItemTypeId == item.ItemTypeId && 
                                              ite.EmployeeTypeId == employee.Group.EmployeeTypeId);
@@ -115,19 +138,28 @@ namespace UniformesSystem.API.Controllers
                 }
             }
             
-            // Verify all items exist and have sufficient stock for issuance
-            foreach (var detail in movementDto.Details)
-            {
-                var item = await _context.Items.FindAsync(detail.ItemId);
-                if (item == null)
-                {
-                    return BadRequest($"Item with ID {detail.ItemId} does not exist.");
-                }
+            var itemIds = movementDto.Details.Select(d => d.ItemId).ToList();
+            var items = await _context.Items
+                .Where(i => itemIds.Contains(i.ItemId))
+                .ToListAsync();
                 
-                // For issuance, check if there's enough stock
-                if (movementDto.MovementType == MovementType.EmployeeIssuance)
+            if (items.Count != itemIds.Count)
+            {
+                var missingItemIds = itemIds.Except(items.Select(i => i.ItemId));
+                return BadRequest($"Items with IDs {string.Join(", ", missingItemIds)} do not exist.");
+            }
+            
+            if (movementDto.MovementType == MovementType.EmployeeIssuance)
+            {
+                var inventoryItems = await _context.Inventory
+                    .Where(i => itemIds.Contains(i.ItemId))
+                    .ToListAsync();
+                    
+                foreach (var detail in movementDto.Details)
                 {
-                    var inventory = await _context.Inventory.FindAsync(detail.ItemId);
+                    var inventory = inventoryItems.FirstOrDefault(i => i.ItemId == detail.ItemId);
+                    var item = items.First(i => i.ItemId == detail.ItemId);
+                    
                     if (inventory == null || inventory.CurrentStock < detail.Quantity)
                     {
                         return BadRequest($"Insufficient stock for item {item.Name}.");
@@ -144,10 +176,13 @@ namespace UniformesSystem.API.Controllers
                 _context.WarehouseMovements.Add(movement);
                 await _context.SaveChangesAsync();
                 
-                // Update inventory levels
+                var inventoryItemsToUpdate = await _context.Inventory
+                    .Where(i => itemIds.Contains(i.ItemId))
+                    .ToListAsync();
+                    
                 foreach (var detail in movement.Details)
                 {
-                    var inventory = await _context.Inventory.FindAsync(detail.ItemId);
+                    var inventory = inventoryItemsToUpdate.FirstOrDefault(i => i.ItemId == detail.ItemId);
                     if (inventory != null)
                     {
                         if (movement.MovementType == MovementType.PurchaseReceipt || 
@@ -166,7 +201,6 @@ namespace UniformesSystem.API.Controllers
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
                 
-                // Reload with related data for response
                 await _context.Entry(movement).Reference(wm => wm.Employee).LoadAsync();
                 await _context.Entry(movement).Collection(wm => wm.Details).LoadAsync();
                 foreach (var detail in movement.Details)

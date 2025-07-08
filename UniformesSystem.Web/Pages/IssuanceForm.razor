@@ -174,7 +174,6 @@
     private WarehouseMovementDto _issuance = new()
     {
         Date = DateTime.Today,
-        MovementTypeId = 4, // Issuance
         Details = new List<WarehouseMovementDetailDto>()
     };
 
@@ -197,7 +196,7 @@
     {
         try
         {
-            _employees = await EmployeeService.GetEmployeesAsync();
+            _employees = await EmployeeService.GetAllEmployeesAsync();
         }
         catch (Exception ex)
         {
@@ -226,12 +225,10 @@
             
             if (_selectedEmployee != null)
             {
-                // Filter items based on employee type
                 _filteredItems = _allItems
                     .Where(i => IsItemAllowedForEmployeeType(i, _selectedEmployee.EmployeeTypeId))
                     .ToList();
                     
-                // Clear previously selected items that may not be valid for this employee type
                 var itemsToRemove = _issuance.Details
                     .Where(d => !_filteredItems.Any(i => i.Id == d.ItemId))
                     .ToList();
@@ -252,26 +249,18 @@
     
     private bool IsItemAllowedForEmployeeType(ItemDto item, int employeeTypeId)
     {
-        // This is a fallback method since ItemDto doesn't have AllowedEmployeeTypes or AllowedForAll
-        // In a real implementation, the model would have these properties
         
-        // For now, we'll use a simple rule: if item name contains "Common" or "All", it's allowed for all
-        // Otherwise, we'll check if the item name contains the employee type ID or a letter designation
         string itemName = item.Name?.ToLower() ?? "";
         
-        // Items with "common" or "all" in name are allowed for all employee types
         if (itemName.Contains("common") || itemName.Contains("all"))
             return true;
             
-        // If employee type is 1 (Unionized), look for indicators in the name
         if (employeeTypeId == 1 && (itemName.Contains("union") || itemName.Contains("work")))
             return true;
             
-        // If employee type is 2 (Administrative), look for indicators in the name
         if (employeeTypeId == 2 && (itemName.Contains("admin") || itemName.Contains("office")))
             return true;
             
-        // As a fallback, allow items based on odd/even ID matching employee type
         return item.Id % 2 == employeeTypeId % 2;
     }
 
@@ -305,7 +294,6 @@
             });
         }
         
-        // Reset selection
         _selectedItemId = 0;
         _itemQuantity = 1;
     }
@@ -341,7 +329,6 @@
             return;
         }
 
-        // Show confirmation dialog
         _showConfirmation = true;
     }
     

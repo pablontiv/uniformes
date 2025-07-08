@@ -24,14 +24,12 @@ public class UniformesDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
         
-        // Configure primary keys
         modelBuilder.Entity<Inventory>()
             .HasKey(i => i.ItemId);
             
         modelBuilder.Entity<ItemTypeEmployeeType>()
             .HasKey(ite => new { ite.ItemTypeId, ite.EmployeeTypeId });
             
-        // Configure relationships
         modelBuilder.Entity<Employee>()
             .HasOne(e => e.Group)
             .WithMany(g => g.Employees)
@@ -80,10 +78,9 @@ public class UniformesDbContext : DbContext
             
         modelBuilder.Entity<ItemTypeEmployeeType>()
             .HasOne(ite => ite.EmployeeType)
-            .WithMany() // No navigation property on EmployeeType
+            .WithMany(et => et.ItemTypeEmployeeTypes)
             .HasForeignKey(ite => ite.EmployeeTypeId);
             
-        // Configure tables and columns
         modelBuilder.Entity<Employee>().ToTable("Employees");
         modelBuilder.Entity<Employee>().Property(e => e.EmployeeId).HasColumnName("id_empleado");
         modelBuilder.Entity<Employee>().Property(e => e.Name).HasColumnName("nombre_empleado").IsRequired().HasMaxLength(100);
@@ -98,7 +95,6 @@ public class UniformesDbContext : DbContext
         modelBuilder.Entity<EmployeeType>().Property(et => et.EmployeeTypeId).HasColumnName("id_tipo");
         modelBuilder.Entity<EmployeeType>().Property(et => et.Type).HasColumnName("tipo").IsRequired().HasMaxLength(50);
         
-        // Seed initial data for employee types and groups
         modelBuilder.Entity<EmployeeType>().HasData(
             new EmployeeType { EmployeeTypeId = 1, Type = "Sindicalizados" },
             new EmployeeType { EmployeeTypeId = 2, Type = "Confianza" }

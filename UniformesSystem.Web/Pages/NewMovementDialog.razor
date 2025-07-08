@@ -110,7 +110,6 @@
     private WarehouseMovementDto _movement = new()
     {
         Date = DateTime.Today,
-        MovementTypeId = 1, // Default: Purchase Receipt
         Details = new List<WarehouseMovementDetailDto>()
     };
     
@@ -123,7 +122,6 @@
         await LoadEmployees();
         await LoadItems();
         
-        // Add first item row by default
         AddItem();
     }
     
@@ -131,7 +129,7 @@
     {
         try
         {
-            _employees = await EmployeeService.GetEmployeesAsync();
+            _employees = await EmployeeService.GetAllEmployeesAsync();
         }
         catch (Exception ex)
         {
@@ -168,7 +166,6 @@
     {
         _validationErrors.Clear();
         
-        // Basic validations
         if (_movement.Details.Count == 0)
         {
             _validationErrors.Add("At least one item is required");

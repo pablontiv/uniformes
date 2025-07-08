@@ -203,7 +203,6 @@
     private WarehouseMovementDto _receipt = new()
     {
         Date = DateTime.Today,
-        MovementTypeId = 1, // Purchase Receipt
         Details = new List<WarehouseMovementDetailDto>()
     };
 
@@ -240,7 +239,6 @@
     {
         try
         {
-            // Since we don't have a GetItemTypesAsync method, we'll create a list from the items we have
             _itemTypes = _allItems
                 .Select(i => new { TypeId = GetItemTypeId(i), TypeName = GetItemTypeName(i) })
                 .Distinct()
@@ -255,24 +253,20 @@
     
     private int GetItemTypeId(ItemDto item)
     {
-        // Since ItemDto doesn't have TypeId, we'll extract it from the name or use a default value
-        // This is a fallback method - in a real implementation, the model should have this property
         
-        // Try to extract a type ID from the item name if it follows a pattern like "Type1-ItemName"
         var nameParts = item.Name?.Split('-');
         if (nameParts != null && nameParts.Length > 1 && int.TryParse(nameParts[0].Trim().Replace("Type", ""), out int typeId))
         {
             return typeId;
         }
         
-        // If we can't extract it, return a default based on a hash of the first word of the name
         string firstWord = item.Name?.Split(' ').FirstOrDefault() ?? "";
-        return Math.Abs(firstWord.GetHashCode() % 5) + 1; // Return a number between 1-5
+        
+        return 0;
     }
     
     private string GetItemTypeName(ItemDto item)
     {
-        // This is a fallback method - in a real implementation, we would have a proper type name
         int typeId = GetItemTypeId(item);
         return $"Category {typeId}";
     }
@@ -311,7 +305,6 @@
             });
         }
         
-        // Reset selection
         _selectedItemId = 0;
         _itemQuantity = 1;
     }
@@ -405,7 +398,6 @@
             return;
         }
         
-        // Add receipt number and supplier to notes if provided
         var notes = new List<string>();
         
         if (!string.IsNullOrWhiteSpace(_receiptNumber))
@@ -419,7 +411,6 @@
             
         _receipt.Notes = string.Join(" | ", notes);
 
-        // Show confirmation dialog
         _showConfirmation = true;
     }
     

@@ -2,6 +2,7 @@ using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using UniformesSystem.API.Models.DTOs;
 using UniformesSystem.Database;
 
@@ -15,12 +16,14 @@ namespace UniformesSystem.API.Controllers
         private readonly UniformesDbContext _context;
         private readonly IMapper _mapper;
         private readonly ILogger<ReportsController> _logger;
+        private readonly IMemoryCache _cache;
 
-        public ReportsController(UniformesDbContext context, IMapper mapper, ILogger<ReportsController> logger)
+        public ReportsController(UniformesDbContext context, IMapper mapper, ILogger<ReportsController> logger, IMemoryCache cache)
         {
             _context = context;
             _mapper = mapper;
             _logger = logger;
+            _cache = cache;
         }
 
         [HttpGet("inventory")]
@@ -162,6 +165,13 @@ namespace UniformesSystem.API.Controllers
         [HttpGet("summary")]
         public async Task<ActionResult<ReportSummaryDTO>> GetReportSummary()
         {
+            const string cacheKey = "report_summary";
+            
+            if (_cache.TryGetValue(cacheKey, out ReportSummaryDTO? cachedSummary))
+            {
+                return Ok(cachedSummary);
+            }
+
             var totalItems = await _context.Items.CountAsync();
             var totalInventoryValue = await _context.Inventory.SumAsync(i => i.CurrentStock);
             var lowStockCount = await _context.Inventory.CountAsync(i => i.CurrentStock <= i.MinimumStock);
@@ -181,6 +191,8 @@ namespace UniformesSystem.API.Controllers
                 RecentMovements = recentMovements,
                 GeneratedAt = DateTime.Now
             };
+
+            _cache.Set(cacheKey, summary, TimeSpan.FromMinutes(5));
 
             return Ok(summary);
         }

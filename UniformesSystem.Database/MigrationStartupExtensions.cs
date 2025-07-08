@@ -17,7 +17,6 @@ public static class MigrationStartupExtensions
             }
             catch (Exception ex)
             {
-                // Log the exception if a logger is available
                 Console.WriteLine($"An error occurred while migrating the database: {ex.Message}");
             }
         }

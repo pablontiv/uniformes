@@ -95,7 +95,7 @@ else
         
         try
         {
-            var employeeTask = EmployeeService.GetEmployeesAsync();
+            var employeeTask = EmployeeService.GetAllEmployeesAsync();
             var groupsTask = GroupService.GetGroupsAsync();
             
             await Task.WhenAll(employeeTask, groupsTask);
@@ -144,7 +144,6 @@ else
             if (success)
             {
                 Snackbar.Add("Employee deleted successfully", Severity.Success);
-                await LoadData(); // Reload the list
             }
             else
             {

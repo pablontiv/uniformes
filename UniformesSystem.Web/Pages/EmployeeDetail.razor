@@ -79,12 +79,10 @@
         
         try
         {
-            // Load groups first as we need them in both create and edit modes
             _groups = await GroupService.GetGroupsAsync();
             
             if (!_isNew)
             {
-                // Load employee data for edit mode
                 var employee = await EmployeeService.GetEmployeeByIdAsync(Id.Value);
                 if (employee != null)
                 {

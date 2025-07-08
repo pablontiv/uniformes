@@ -25,8 +25,6 @@ namespace UniformesSystem.API.Controllers
         [HttpPost("login")]
         public ActionResult<string> Login([FromBody] LoginModel model)
         {
-            // In a real application, validate credentials against a database
-            // For this implementation, we'll use hardcoded credentials for simplicity
             if (model.Username == "admin" && model.Password == "admin123")
             {
                 var token = GenerateJwtToken(model.Username, "Administrator");

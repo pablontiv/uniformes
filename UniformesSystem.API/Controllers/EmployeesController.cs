@@ -25,14 +25,40 @@ namespace UniformesSystem.API.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<EmployeeDTO>>> GetEmployees()
+        public async Task<ActionResult<PagedResultDTO<EmployeeDTO>>> GetEmployees(
+            int page = 1, 
+            int pageSize = 50, 
+            string? search = null)
         {
-            var employees = await _context.Employees
+            if (page < 1) page = 1;
+            if (pageSize < 1 || pageSize > 100) pageSize = 50;
+
+            var query = _context.Employees
                 .Include(e => e.Group)
                 .ThenInclude(g => g.EmployeeType)
+                .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                query = query.Where(e => e.Name.Contains(search));
+            }
+
+            var totalCount = await query.CountAsync();
+            var employees = await query
+                .OrderBy(e => e.Name)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .ToListAsync();
-                
-            return Ok(_mapper.Map<IEnumerable<EmployeeDTO>>(employees));
+
+            var result = new PagedResultDTO<EmployeeDTO>
+            {
+                Items = _mapper.Map<IEnumerable<EmployeeDTO>>(employees),
+                TotalCount = totalCount,
+                Page = page,
+                PageSize = pageSize
+            };
+
+            return Ok(result);
         }
 
         [HttpGet("{id}")]
@@ -70,7 +96,6 @@ namespace UniformesSystem.API.Controllers
             _context.Employees.Add(employee);
             await _context.SaveChangesAsync();
 
-            // Reload with group info for response
             await _context.Entry(employee).Reference(e => e.Group).LoadAsync();
             await _context.Entry(employee.Group).Reference(g => g.EmployeeType).LoadAsync();
 
@@ -119,7 +144,6 @@ namespace UniformesSystem.API.Controllers
                 return NotFound();
             }
 
-            // Check if the employee has any warehouse movements
             var hasWarehouseMovements = await _context.WarehouseMovements
                 .AnyAsync(wm => wm.EmployeeId == id);
                 

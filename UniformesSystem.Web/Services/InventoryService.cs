@@ -24,7 +24,6 @@ namespace UniformesSystem.Web.Services
             }
             catch (Exception)
             {
-                // Log the exception if needed
                 return new List<InventoryDto>();
             }
         }
@@ -41,7 +40,6 @@ namespace UniformesSystem.Web.Services
             }
             catch (Exception)
             {
-                // Log the exception if needed
                 return new List<InventoryDto>();
             }
         }
@@ -57,7 +55,6 @@ namespace UniformesSystem.Web.Services
             }
             catch (Exception)
             {
-                // Log the exception if needed
                 return null;
             }
         }
@@ -71,7 +68,6 @@ namespace UniformesSystem.Web.Services
             }
             catch (Exception)
             {
-                // Log the exception if needed
                 return false;
             }
         }

@@ -75,10 +75,6 @@
     {
         return movementTypeId switch
         {
-            1 => Color.Success,  // Purchase Receipt
-            2 => Color.Warning,  // Inventory Adjustment
-            3 => Color.Info,     // Employee Return
-            4 => Color.Error,    // Employee Issuance
             _ => Color.Default
         };
     }

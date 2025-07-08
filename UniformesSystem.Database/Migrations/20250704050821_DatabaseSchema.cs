@@ -3,14 +3,11 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-#pragma warning disable CA1814 // Prefer jagged arrays over multidimensional
 
 namespace UniformesSystem.Database.Migrations
 {
-    /// <inheritdoc />
     public partial class DatabaseSchema : Migration
     {
-        /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
@@ -275,7 +272,6 @@ namespace UniformesSystem.Database.Migrations
                 table: "WarehouseMovements",
                 column: "EmployeeId");
                 
-            // Create stored procedure for inventory reduction
             migrationBuilder.Sql(@"
 -- Stored procedure for inventory reduction when issuing items to employees
 CREATE OR ALTER PROCEDURE [dbo].[sp_ReduceInventory]
@@ -324,7 +320,6 @@ BEGIN
     END CATCH
 END");
 
-            // Create view for warehouse movements with associated employee information
             migrationBuilder.Sql(@"
 CREATE OR ALTER VIEW [dbo].[vw_WarehouseMovementsDetail] AS
 SELECT 
@@ -353,7 +348,6 @@ FROM
     INNER JOIN Sizes s ON i.SizeId = s.SizeId");
         }
 
-        /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(

@@ -26,7 +26,6 @@ namespace UniformesSystem.API
                 {
                     Console.WriteLine("Connected to database successfully!");
                     
-                    // Get all tables
                     var tables = context.Model.GetEntityTypes().Select(t => t.GetTableName()).ToList();
                     Console.WriteLine($"Tables in database ({tables.Count}):");
                     foreach (var table in tables)
@@ -34,7 +33,6 @@ namespace UniformesSystem.API
                         Console.WriteLine($"- {table}");
                     }
                     
-                    // Check if specific tables exist
                     var employeesTable = tables.FirstOrDefault(t => t == "Employees");
                     Console.WriteLine($"Employees table exists: {employeesTable != null}");
                     

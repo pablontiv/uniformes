@@ -25,19 +25,18 @@ namespace UniformesSystem.Web.Services
         {
             var dashboardData = new DashboardData();
 
-            var employeesTask = _employeeService.GetEmployeesAsync();
+            var employeesTask = _employeeService.GetAllEmployeesAsync();
             var itemsTask = _itemService.GetItemsAsync();
             var lowStockTask = _inventoryService.GetLowStockItemsAsync();
             var recentMovementsTask = _warehouseMovementService.GetRecentMovementsAsync(7);
 
             await Task.WhenAll(employeesTask, itemsTask, lowStockTask, recentMovementsTask);
 
-            dashboardData.TotalEmployees = employeesTask.Result.Count;
+            dashboardData.TotalEmployees = employeesTask.Result.Count();
             dashboardData.TotalItems = itemsTask.Result.Count;
             dashboardData.LowStockItems = lowStockTask.Result;
             
             dashboardData.RecentMovements = recentMovementsTask.Result
-                .Where(m => m.MovementTypeId == 1) // Assuming 1 is the ID for issuance
                 .ToList();
             
             dashboardData.TotalRecentTransactions = recentMovementsTask.Result.Count;

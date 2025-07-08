@@ -6,4 +6,5 @@ public class EmployeeType
     public string Type { get; set; } = string.Empty;
     
     public ICollection<Group> Groups { get; set; } = new List<Group>();
+    public ICollection<ItemTypeEmployeeType> ItemTypeEmployeeTypes { get; set; } = new List<ItemTypeEmployeeType>();
 }

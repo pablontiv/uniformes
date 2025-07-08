@@ -30,7 +30,6 @@ namespace UniformesSystem.API.Models.DTOs
         
         public string? Notes { get; set; }
         
-        // Only required for issuance movements
         public int? EmployeeId { get; set; }
         
         [Required]
@@ -41,10 +40,11 @@ namespace UniformesSystem.API.Models.DTOs
     public class CreateWarehouseMovementDetailDTO
     {
         [Required]
+        [PositiveNumber]
         public int ItemId { get; set; }
         
         [Required]
-        [Range(1, int.MaxValue, ErrorMessage = "Quantity must be greater than 0")]
+        [PositiveNumber]
         public int Quantity { get; set; }
     }
 }
