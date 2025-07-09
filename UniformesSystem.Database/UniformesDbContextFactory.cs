@@ -8,7 +8,7 @@ public class UniformesDbContextFactory : IDesignTimeDbContextFactory<UniformesDb
     public UniformesDbContext CreateDbContext(string[] args)
     {
         var connectionString = Environment.GetEnvironmentVariable("UNIFORMES_DB_CONNECTION") ?? 
-            "Server=localhost;Database=UniformesDB;User=sa;Password=P@ssw0rd;TrustServerCertificate=True;";
+            "Server=(localdb)\\mssqllocaldb;Database=UniformesDB;Trusted_Connection=True;TrustServerCertificate=True;";
         
         var optionsBuilder = new DbContextOptionsBuilder<UniformesDbContext>();
         optionsBuilder.UseSqlServer(connectionString);

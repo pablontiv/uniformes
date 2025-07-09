@@ -1,7 +1,7 @@
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
 WORKDIR /app
 EXPOSE 80
-EXPOSE 443
+RUN apt-get update && apt-get install -y wget
 
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
@@ -13,18 +13,12 @@ WORKDIR "/src/UniformesSystem.API"
 RUN dotnet build "UniformesSystem.API.csproj" -c Release -o /app/build
 
 FROM build AS publish
-RUN dotnet publish "UniformesSystem.API.csproj" -c Release -o /app/publish
-
-FROM build as dbchecker
-WORKDIR "/src/UniformesSystem.API"
-RUN dotnet add package Microsoft.Extensions.Configuration.Json
-RUN dotnet build -c Release -o /app/dbchecker
+# Use ExcludeConfigFilesFromPublishDir to prevent conflicts with the Web project
+RUN dotnet publish "UniformesSystem.API.csproj" -c Release -o /app/publish /p:UseAppHost=false -p:CopyOutputSymbolsToPublishDirectory=false -p:ExcludeConfigFilesFromBuildOutput=false
 
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
-COPY --from=dbchecker /app/dbchecker/UniformesSystem.API.dll /app/dbchecker/
-COPY --from=dbchecker /app/dbchecker/UniformesSystem.API.runtimeconfig.json /app/dbchecker/
-COPY --from=dbchecker /app/dbchecker/UniformesSystem.API.deps.json /app/dbchecker/
-COPY --from=dbchecker /app/dbchecker/UniformesSystem.Database.dll /app/dbchecker/
+# Copy config files explicitly to ensure they're in the right location
+COPY UniformesSystem.API/appsettings*.json .
 ENTRYPOINT ["dotnet", "UniformesSystem.API.dll"]

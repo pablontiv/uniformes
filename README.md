@@ -143,10 +143,10 @@ This will start:
 Check that containers are running properly:
 
 ```bash
-docker ps
+docker-compose ps
 ```
 
-You should see three containers running:
+You should see three containers running with healthy status:
 - uniformes-db
 - uniformes-api
 - uniformes-web
@@ -156,7 +156,7 @@ You should see three containers running:
 Open your web browser and access:
 
 ```
-http://localhost:5000
+http://localhost:5001
 ```
 
 ## Authentication
@@ -276,30 +276,58 @@ This application is designed to meet the following business requirements from th
 ## Troubleshooting
 
 ### Application Not Starting Correctly
-1. Verify that ports 1433, 5000, and 80 are not being used by other applications
+
+1. Verify that ports 1433, 5000, and 5001 are not being used by other applications
 2. Check that Docker is running
 3. Restart containers:
+
    ```bash
    docker-compose down
    docker-compose up -d
    ```
 
 ### Database Connection Issues
-1. Verify the database container is running:
+
+1. Verify the database container is running and healthy:
+
    ```bash
-   docker ps | grep db
+   docker-compose ps
    ```
+
 2. Check logs for possible errors:
+
    ```bash
    docker logs uniformes-db
    ```
 
+3. Test the API health endpoint:
+
+   ```bash
+   curl http://localhost:5000/api/health
+   ```
+
 ### Login Errors
+
 1. Make sure you're using the correct credentials
 2. Check if the API is functioning:
+
    ```bash
    docker logs uniformes-api
    ```
+
+3. Ensure the web container can access the API:
+
+   ```bash
+   docker logs uniformes-web
+   ```
+
+### Advanced Troubleshooting
+
+If you experience issues with health checks or container dependencies:
+
+1. Check the health check settings in docker-compose.yml
+2. Ensure the database is properly initialized
+3. Verify environment variables are correctly set
 
 If problems persist, you can completely restart the application by removing all containers and volumes:
 
@@ -313,5 +341,6 @@ Note: This command will delete all previously stored data.
 ## Contributing
 
 Please follow the project's version control strategy:
+
 - Direct commits to main branch
 - Each commit should represent a distinct, functioning iteration as outlined in the PRD
