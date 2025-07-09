@@ -33,6 +33,10 @@ services:
       - Logging__LogLevel__Default=Debug
       - Logging__LogLevel__Microsoft=Debug
       - Logging__LogLevel__Microsoft.EntityFrameworkCore.Database.Command=Information
+      - AuthSettings__Secret=YourSecretKeyHereAtLeast32CharsLong!!
+      - AuthSettings__ExpirationInMinutes=60
+      - AuthSettings__Issuer=UniformesSystem
+      - AuthSettings__Audience=UniformesSystemUsers
     restart: on-failure
     ports:
       - "5000:80"

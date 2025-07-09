@@ -38,6 +38,7 @@ namespace UniformesSystem.Web.Services
             
             var authenticatedUser = CreateClaimsPrincipal(token);
             
+            // Importante: Esto notifica al framework que el estado de autenticación ha cambiado
             var authState = Task.FromResult(new AuthenticationState(authenticatedUser));
             NotifyAuthenticationStateChanged(authState);
         }

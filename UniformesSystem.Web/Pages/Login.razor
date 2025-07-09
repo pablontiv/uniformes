@@ -84,6 +84,11 @@
             
             if (result)
             {
+                // Dar tiempo al estado de autenticación para actualizarse completamente
+                await Task.Delay(300);
+                
+                // Navegar a la página principal forzando una recarga completa
+                // para asegurar que el estado de autenticación se aplique correctamente
                 NavigationManager.NavigateTo("/", true);
             }
             else

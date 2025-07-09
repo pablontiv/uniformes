@@ -3,6 +3,7 @@
 @code {
     protected override void OnInitialized()
     {
-        Navigation.NavigateTo($"/login?returnUrl={Uri.EscapeDataString(Navigation.Uri)}", true);
+        // No forzamos una recarga completa cuando redirigimos al login
+        Navigation.NavigateTo($"/login?returnUrl={Uri.EscapeDataString(Navigation.Uri)}", false);
     }
 }

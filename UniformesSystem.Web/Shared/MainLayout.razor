@@ -8,9 +8,10 @@
 <MudThemeProvider />
 <MudDialogProvider />
 <MudSnackbarProvider />
+<MudPopoverProvider />
 
 <AuthorizeView>
-    <Authorized>
+    <Authorized Context="authContext">
         <MudLayout>
             <MudAppBar Elevation="1">
                 <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@((e) => DrawerToggle())" />
@@ -18,7 +19,7 @@
                 <MudSpacer />
                 <MudMenu Direction="Direction.Left" OffsetX="true" Dense="true" Class="mt-1 mr-1">
                     <ActivatorContent>
-                        <MudButton StartIcon="@Icons.Material.Filled.Person" Color="Color.Inherit">@context.User.Identity?.Name</MudButton>
+                        <MudButton StartIcon="@Icons.Material.Filled.Person" Color="Color.Inherit">@authContext.User.Identity?.Name</MudButton>
                     </ActivatorContent>
                     <ChildContent>
                         <MudMenuItem OnClick="@(async () => await LogoutAsync())">Logout</MudMenuItem>
@@ -33,13 +34,33 @@
             </MudDrawer>
             <MudMainContent>
                 <MudContainer MaxWidth="MaxWidth.Large" Class="my-4 pt-4">
-                    @Body
+                    @if (NavigationManager.Uri.Contains("/login") && authContext.User.Identity.IsAuthenticated)
+                    {
+                        <ComponentPlaceholder />
+                        @{
+                            NavigationManager.NavigateTo("/");
+                        }
+                    }
+                    else
+                    {
+                        @Body
+                    }
                 </MudContainer>
             </MudMainContent>
         </MudLayout>
     </Authorized>
     <NotAuthorized>
-        @Body
+        @if (NavigationManager.Uri.EndsWith("/") || NavigationManager.Uri.EndsWith(""))
+        {
+            <ComponentPlaceholder />
+            @{
+                NavigationManager.NavigateTo("/login");
+            }
+        }
+        else
+        {
+            @Body
+        }
     </NotAuthorized>
 </AuthorizeView>
 

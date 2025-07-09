@@ -1,0 +1,16 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+    {
+      "label": "Setup Uniformes System",
+      "type": "shell",
+      "command": "cmd.exe",
+      "args": [
+        "/C",
+        "start \"\" \"C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe\" && echo Starting Docker Desktop, please wait... && timeout /t 30 && echo Docker should be running now, please check Docker Desktop is running before proceeding."
+      ],
+      "group": "build",
+      "problemMatcher": []
+    }
+  ]
+}
